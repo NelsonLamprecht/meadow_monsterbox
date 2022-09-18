@@ -10,20 +10,21 @@ using Meadow.Foundation;
 using Meadow.Foundation.Web.Maple.Server;
 using Meadow.Gateway.WiFi;
 
+using meadow_monsterbox.Controllers;
+
 namespace meadow_monsterbox
 {
-    // Change F7FeatherV2 to F7FeatherV1 for V1.x boards
     public class MeadowApp : App<F7FeatherV1, MeadowApp>
     {
-        MapleServer _mapleServer; 
+        private MapleServer _mapleServer;
 
-        private const string appConfigFileName = "app.config.json";        
+        private const string appConfigFileName = "app.config.json";
 
         public MeadowApp()
         {
             try
-            {               
-                Initialize().Wait();                
+            {
+                Initialize().Wait();
             }
             catch (Exception)
             {
@@ -33,31 +34,33 @@ namespace meadow_monsterbox
 
         private async Task Initialize()
         {
+            Console.WriteLine("Initializing hardware...");
             LedController.Current.Initialize();
-            Console.WriteLine("Initializing hardware...");            
+            RelayController.Current.Initialize();
+            AppConfigRoot appConfigRoot = await GetAppConfig();
 
-            AppConfigRoot appConfig = await GetAppConfig();
-            if (appConfig != null
+            if (appConfigRoot != null
                 &&
-                appConfig.Network != null
+                appConfigRoot.Network != null
                 &&
-                appConfig.Network.Wifi != null
+                appConfigRoot.Network.Wifi != null
                 &&
-                appConfig.Network.Wifi.SSID != null
+                appConfigRoot.Network.Wifi.SSID != null
                 &&
-                appConfig.Network.Wifi.Password != null)
+                appConfigRoot.Network.Wifi.Password != null)
             {
-                var connectionResult = await Device.WiFiAdapter.Connect(appConfig.Network.Wifi.SSID, appConfig.Network.Wifi.Password);
+
+                ConnectionResult connectionResult = await Device.WiFiAdapter.Connect(appConfigRoot.Network.Wifi.SSID, appConfigRoot.Network.Wifi.Password);
                 if (connectionResult.ConnectionStatus != ConnectionStatus.Success)
-                {                    
-                    throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");                    
+                {
+                    throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
                 }
-                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true);
+                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
                 _mapleServer.Start();
                 LedController.Current.SetColor(Color.Green);
             }
             else
-            {                
+            {
                 throw new Exception("Unable to get network configuration from file.");
             }
         }
@@ -86,8 +89,8 @@ namespace meadow_monsterbox
                 using (var fileStream = File.Open(path, FileMode.Open, FileAccess.Read))
                 using (var streamReader = new StreamReader(fileStream, Encoding.UTF8))
                 {
-                    var fileContents = await streamReader.ReadToEndAsync();                    
-                    var result  = JsonSerializer.Deserialize<T>(fileContents);                    
+                    var fileContents = await streamReader.ReadToEndAsync();
+                    var result = JsonSerializer.Deserialize<T>(fileContents);
                     return result;
                 }
             }

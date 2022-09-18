@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace meadow_monsterbox
+﻿namespace meadow_monsterbox
 {
     public class AppConfigRoot
     {

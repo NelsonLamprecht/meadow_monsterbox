@@ -5,7 +5,7 @@ using System.Threading;
 using Meadow.Foundation.Leds;
 using Meadow.Foundation;
 
-namespace meadow_monsterbox
+namespace meadow_monsterbox.Controllers
 {
     public class LedController
     {
@@ -30,9 +30,9 @@ namespace meadow_monsterbox
 
             rgbPwmLed = new RgbPwmLed(
                 device: MeadowApp.Device,
-                redPwmPin: MeadowApp.Device.Pins.D12,
-                greenPwmPin: MeadowApp.Device.Pins.D11,
-                bluePwmPin: MeadowApp.Device.Pins.D10);
+                redPwmPin: MeadowApp.Device.Pins.OnboardLedRed,
+                greenPwmPin: MeadowApp.Device.Pins.OnboardLedGreen,
+                bluePwmPin: MeadowApp.Device.Pins.OnboardLedBlue);
             rgbPwmLed.SetColor(Color.Red);
 
             initialized = true;
