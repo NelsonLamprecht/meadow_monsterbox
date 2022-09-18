@@ -9,7 +9,8 @@ namespace meadow_monsterbox.Controllers
 {
     public class LedController
     {
-        RgbPwmLed rgbPwmLed;
+        RgbPwmLed onBoardRGBLed;
+
         Task animationTask = null;
         CancellationTokenSource cancellationTokenSource = null;
 
@@ -26,58 +27,61 @@ namespace meadow_monsterbox.Controllers
 
         public void Initialize()
         {
-            if (initialized) { return; }
+            if (initialized)
+            {
+                return;
+            }
 
-            rgbPwmLed = new RgbPwmLed(
+            onBoardRGBLed = new RgbPwmLed(
                 device: MeadowApp.Device,
                 redPwmPin: MeadowApp.Device.Pins.OnboardLedRed,
                 greenPwmPin: MeadowApp.Device.Pins.OnboardLedGreen,
                 bluePwmPin: MeadowApp.Device.Pins.OnboardLedBlue);
-            rgbPwmLed.SetColor(Color.Red);
+            onBoardRGBLed.SetColor(Color.Red);
 
             initialized = true;
         }
 
         void Stop()
         {
-            rgbPwmLed.Stop();
+            onBoardRGBLed.Stop();
             cancellationTokenSource?.Cancel();
         }
 
         public void SetColor(Color color)
         {
             Stop();
-            rgbPwmLed.SetColor(color);
+            onBoardRGBLed.SetColor(color);
         }
 
         public void TurnOn()
         {
             Stop();
-            rgbPwmLed.SetColor(GetRandomColor());
-            rgbPwmLed.IsOn = true;
+            onBoardRGBLed.SetColor(GetRandomColor());
+            onBoardRGBLed.IsOn = true;
         }
 
         public void TurnOff()
         {
             Stop();
-            rgbPwmLed.IsOn = false;
+            onBoardRGBLed.IsOn = false;
         }
 
         public void StartBlink()
         {
             Stop();
-            rgbPwmLed.StartBlink(GetRandomColor());
+            onBoardRGBLed.StartBlink(GetRandomColor());
         }
 
         public void StartPulse()
         {
             Stop();
-            rgbPwmLed.StartPulse(GetRandomColor());
+            onBoardRGBLed.StartPulse(GetRandomColor());
         }
 
         public void StartRunningColors()
         {
-            rgbPwmLed.Stop();
+            onBoardRGBLed.Stop();
 
             animationTask = new Task(async () =>
             {
@@ -96,7 +100,7 @@ namespace meadow_monsterbox.Controllers
                     break;
                 }
 
-                rgbPwmLed.SetColor(GetRandomColor());
+                onBoardRGBLed.SetColor(GetRandomColor());
                 await Task.Delay(1000);
             }
         }

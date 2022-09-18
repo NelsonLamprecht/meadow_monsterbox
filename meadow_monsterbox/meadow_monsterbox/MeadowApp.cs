@@ -24,6 +24,7 @@ namespace meadow_monsterbox
         {
             try
             {
+                Device.Information.DeviceName = "MeadowF7v1-1";
                 Initialize().Wait();
             }
             catch (Exception)
@@ -54,7 +55,7 @@ namespace meadow_monsterbox
                 if (connectionResult.ConnectionStatus != ConnectionStatus.Success)
                 {
                     throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
-                }
+                }                
                 _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
                 _mapleServer.Start();
                 LedController.Current.SetColor(Color.Green);
