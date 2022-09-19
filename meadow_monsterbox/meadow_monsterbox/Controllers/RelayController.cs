@@ -9,7 +9,6 @@ namespace meadow_monsterbox.Controllers
         protected bool initialized = false;
 
         protected Relay relayLeft;
-
         protected Relay relayRight;
 
         public static RelayController Current
@@ -29,12 +28,14 @@ namespace meadow_monsterbox.Controllers
 
         public void Initialize()
         {
-            if (!initialized)
+            if (initialized)
             {
-                relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03));
-                relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04));
-                initialized = true;
+                return;
             }
+
+            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03));
+            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04));
+            initialized = true;
         }
 
         public void TurnOffLeft()

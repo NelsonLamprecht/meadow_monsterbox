@@ -16,9 +16,16 @@ namespace meadow_monsterbox
 {
     public class MeadowApp : App<F7FeatherV1, MeadowApp>
     {
+        private static readonly Random random = new Random();
+
         private MapleServer _mapleServer;
+        private CylinderController _leftCylinder;
+        private CylinderController _rightCylinder;
 
         private const string appConfigFileName = "app.config.json";
+
+        public CylinderController LeftCylinder { get => _leftCylinder; private set => _leftCylinder = value; }
+        public CylinderController RightCylinder { get => _rightCylinder; private set => _rightCylinder = value; }
 
         public MeadowApp()
         {
@@ -58,6 +65,10 @@ namespace meadow_monsterbox
                 }                
                 _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
                 _mapleServer.Start();
+
+                LeftCylinder = new CylinderController(Cylinders.Left, random);
+                RightCylinder = new CylinderController(Cylinders.Right, random);
+
                 LedController.Current.SetColor(Color.Green);
             }
             else

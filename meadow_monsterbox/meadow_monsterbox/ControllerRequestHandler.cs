@@ -1,12 +1,14 @@
 ﻿using Meadow.Foundation.Web.Maple.Server.Routing;
 using Meadow.Foundation.Web.Maple.Server;
 using meadow_monsterbox.Controllers;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace meadow_monsterbox
 {
-    public class LedControllerRequestHandler : RequestHandlerBase
+    public class ControllerRequestHandler : RequestHandlerBase
     {
-        public LedControllerRequestHandler() { }
+        public ControllerRequestHandler() { }
 
         [HttpPost("/turnon")]
         public IActionResult TurnOn()
@@ -48,6 +50,15 @@ namespace meadow_monsterbox
         public IActionResult StartRunningColors()
         {
             LedController.Current.StartRunningColors();
+            return new OkResult();
+        }
+
+        [HttpPost("/shake")]
+        public async Task<IActionResult> ShakeAsync()
+        {
+            await MeadowApp.Current.LeftCylinder.ShakeAsync();
+            await MeadowApp.Current.RightCylinder.ShakeAsync();
+
             return new OkResult();
         }
     }
