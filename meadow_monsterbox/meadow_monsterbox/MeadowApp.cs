@@ -45,6 +45,7 @@ namespace meadow_monsterbox
             Console.WriteLine("Initializing hardware...");
             LedController.Current.Initialize();
             RelayController.Current.Initialize();
+
             AppConfigRoot appConfigRoot = await GetAppConfig();
 
             if (appConfigRoot != null

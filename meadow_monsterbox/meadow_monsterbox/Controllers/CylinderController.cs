@@ -17,7 +17,9 @@ namespace meadow_monsterbox.Controllers
         }
 
         public async Task ShakeAsync()
-        {            
+        {
+            Stop();
+            Console.WriteLine("Shake.");
             for (int i = 0; i < 10; i++)
             {
                 await Action();

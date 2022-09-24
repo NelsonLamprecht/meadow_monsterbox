@@ -55,7 +55,7 @@ namespace meadow_monsterbox
 
         [HttpPost("/shake")]
         public async Task<IActionResult> ShakeAsync()
-        {
+        {             
             await MeadowApp.Current.LeftCylinder.ShakeAsync();
             await MeadowApp.Current.RightCylinder.ShakeAsync();
 

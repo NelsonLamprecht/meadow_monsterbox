@@ -8,8 +8,8 @@ namespace meadow_monsterbox.Controllers
     {
         protected bool initialized = false;
 
-        protected Relay relayLeft;
-        protected Relay relayRight;
+        private Relay relayLeft;
+        private Relay relayRight;
 
         public static RelayController Current
         {
@@ -33,8 +33,8 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
 
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03));
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04));
+            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,false, Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,false, Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
             initialized = true;
         }
 
