@@ -10,6 +10,7 @@ namespace meadow_monsterbox.Controllers
 
         private Relay relayLeft;
         private Relay relayRight;
+        private bool _debug = false;
 
         public static RelayController Current
         {
@@ -38,28 +39,50 @@ namespace meadow_monsterbox.Controllers
             initialized = true;
         }
 
+        public void DebugOff()
+        {
+            _debug = false;
+        }
+
+        public void DebugOn()
+        {
+            _debug = true;
+        }
+
         public void TurnOffLeft()
         {
             relayLeft.IsOn = false;
-            Console.WriteLine("Relay Left Is Off.");
+            if (_debug)
+            {
+                Console.WriteLine("Relay Left Is Off.");
+            }
         }
 
         public void TurnOffRight()
         {
             relayRight.IsOn = false;
-            Console.WriteLine("Relay Right Is Off.");
+            if (_debug)
+            {
+                Console.WriteLine("Relay Right Is Off.");
+            }
         }
 
         public void TurnOnLeft()
         {
             relayLeft.IsOn = true;
-            Console.WriteLine("Relay Left Is On.");
+            if(_debug)
+            {
+                Console.WriteLine("Relay Left Is On.");
+            }
         }
 
         public void TurnOnRight()
         {
             relayRight.IsOn = true;
-            Console.WriteLine("Relay Right Is On.");
+            if (_debug)
+            {
+                Console.WriteLine("Relay Right Is On.");
+            }
         }
     }
 }

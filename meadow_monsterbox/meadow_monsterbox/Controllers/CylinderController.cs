@@ -1,6 +1,4 @@
-﻿using Meadow.Foundation.Relays;
-using System;
-using System.Threading;
+﻿using System;
 using System.Threading.Tasks;
 
 namespace meadow_monsterbox.Controllers
@@ -8,7 +6,6 @@ namespace meadow_monsterbox.Controllers
     public class CylinderController
     {
         private readonly Random _random;
-        private const int DELAY = 75;
 
         public CylinderController(Random random)
         {
@@ -20,20 +17,22 @@ namespace meadow_monsterbox.Controllers
             Stop();
             Console.WriteLine("Shake.");
             var iterations = _random.Next(25, 51);
+            Console.WriteLine(Environment.NewLine);
+            Console.WriteLine($"Iterations: {iterations}");
+
             for (int i = 0; i < iterations ; i++)
             {
-                Action();
-                await Task.Delay(_random.Next(25, 50));
+                await ActionAsync();
             }
             Stop();
         }
 
-        private void Action()
+        private async Task ActionAsync()
         {
-            Console.WriteLine(Environment.NewLine);
-
             // either turn it on or turn it off
             var randomNumber = _random.Next(0, 2);
+
+            // left or right
             var randomLeftOrRight = _random.Next(0, 2);
 
             if (randomNumber == 0)
@@ -42,10 +41,11 @@ namespace meadow_monsterbox.Controllers
                 {
                     RelayController.Current.TurnOffLeft();
                 }
-                if (randomLeftOrRight == 1)
+                else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOffRight();
+                    RelayController.Current.TurnOffRight();                   
                 }
+                await Task.Delay(_random.Next(25, 50));
             }
             else if (randomNumber == 1)
             {
@@ -53,10 +53,11 @@ namespace meadow_monsterbox.Controllers
                 {
                     RelayController.Current.TurnOnLeft();
                 }
-                if (randomLeftOrRight == 1)
+                else if (randomLeftOrRight == 1)
                 {
                     RelayController.Current.TurnOnRight();
                 }
+                await Task.Delay(_random.Next(25, 50));
             }
         }
 
