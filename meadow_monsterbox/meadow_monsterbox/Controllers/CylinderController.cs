@@ -7,66 +7,68 @@ namespace meadow_monsterbox.Controllers
 {
     public class CylinderController
     {
-        private readonly Cylinders _cylinder;
-        private readonly Random _random;        
+        private readonly Random _random;
+        private const int DELAY = 75;
 
-        public CylinderController(Cylinders cylinder, Random random)
+        public CylinderController(Random random)
         {
-            _cylinder = cylinder;
-            _random = random;            
+            _random = random;
         }
 
         public async Task ShakeAsync()
         {
             Stop();
             Console.WriteLine("Shake.");
-            for (int i = 0; i < 10; i++)
+            var iterations = _random.Next(25, 51);
+            for (int i = 0; i < iterations ; i++)
             {
-                await Action();
-            }            
+                Action();
+                await Task.Delay(_random.Next(25, 50));
+            }
+            Stop();
         }
 
-        private async Task Action()
+        private void Action()
         {
+            Console.WriteLine(Environment.NewLine);
+
             // either turn it on or turn it off
             var randomNumber = _random.Next(0, 2);
+            var randomLeftOrRight = _random.Next(0, 2);
+
             if (randomNumber == 0)
             {
-                if (_cylinder == Cylinders.Left)
+                if (randomLeftOrRight == 0)
                 {
                     RelayController.Current.TurnOffLeft();
                 }
-                else if (_cylinder == Cylinders.Right)
+                if (randomLeftOrRight == 1)
                 {
                     RelayController.Current.TurnOffRight();
                 }
             }
             else if (randomNumber == 1)
             {
-                if (_cylinder == Cylinders.Left)
+                if (randomLeftOrRight == 0)
                 {
                     RelayController.Current.TurnOnLeft();
                 }
-                else if (_cylinder == Cylinders.Right)
+                if (randomLeftOrRight == 1)
                 {
                     RelayController.Current.TurnOnRight();
                 }
             }
-
-            await Task.Delay(1);
         }
 
         private void Stop()
         {
             Console.WriteLine("Stop.");
-            RelayController.Current.TurnOffLeft();
-            RelayController.Current.TurnOffRight();
-        }
-    }
 
-    public enum Cylinders
-    {
-        Left = 1,
-        Right = 2
-    }
+            RelayController.Current.TurnOffLeft();
+
+            RelayController.Current.TurnOffRight();
+
+        }
+    }   
+
 }

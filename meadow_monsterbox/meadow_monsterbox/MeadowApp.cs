@@ -19,13 +19,11 @@ namespace meadow_monsterbox
         private static readonly Random random = new Random();
 
         private MapleServer _mapleServer;
-        private CylinderController _leftCylinder;
-        private CylinderController _rightCylinder;
+        private CylinderController _cylinders;
 
         private const string appConfigFileName = "app.config.json";
 
-        public CylinderController LeftCylinder { get => _leftCylinder; private set => _leftCylinder = value; }
-        public CylinderController RightCylinder { get => _rightCylinder; private set => _rightCylinder = value; }
+        public CylinderController BoxCylinders { get => _cylinders; private set => _cylinders = value; }
 
         public MeadowApp()
         {
@@ -65,10 +63,10 @@ namespace meadow_monsterbox
                     throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
                 }                
                 _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
+                _mapleServer.AdvertiseIntervalMs = 30000; // every 30 seconds
                 _mapleServer.Start();
 
-                LeftCylinder = new CylinderController(Cylinders.Left, random);
-                RightCylinder = new CylinderController(Cylinders.Right, random);
+                BoxCylinders = new CylinderController(random);
 
                 LedController.Current.SetColor(Color.Green);
             }
