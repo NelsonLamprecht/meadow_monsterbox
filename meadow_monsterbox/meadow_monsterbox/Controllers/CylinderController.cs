@@ -3,11 +3,11 @@ using System.Threading.Tasks;
 
 namespace meadow_monsterbox.Controllers
 {
-    public class CylinderController
+    public class CylindersController
     {
         private readonly Random _random;
 
-        public CylinderController(Random random)
+        public CylindersController(Random random)
         {
             _random = random;
         }
@@ -40,36 +40,34 @@ namespace meadow_monsterbox.Controllers
                 if (randomLeftOrRight == 0)
                 {
                     RelayController.Current.TurnOffLeft();
+                    await Task.Delay(_random.Next(25, 75));
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOffRight();                   
-                }
-                await Task.Delay(_random.Next(25, 50));
+                    RelayController.Current.TurnOffRight();
+                    await Task.Delay(_random.Next(25, 75));
+                }                
             }
             else if (randomNumber == 1)
             {
                 if (randomLeftOrRight == 0)
                 {
                     RelayController.Current.TurnOnLeft();
+                    await Task.Delay(_random.Next(25, 75));
                 }
                 else if (randomLeftOrRight == 1)
                 {
                     RelayController.Current.TurnOnRight();
-                }
-                await Task.Delay(_random.Next(25, 50));
+                    await Task.Delay(_random.Next(25, 75));
+                }                
             }
         }
 
         private void Stop()
         {
             Console.WriteLine("Stop.");
-
             RelayController.Current.TurnOffLeft();
-
             RelayController.Current.TurnOffRight();
-
         }
     }   
-
 }

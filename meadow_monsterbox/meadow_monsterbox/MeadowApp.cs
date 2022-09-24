@@ -19,11 +19,11 @@ namespace meadow_monsterbox
         private static readonly Random random = new Random();
 
         private MapleServer _mapleServer;
-        private CylinderController _cylinders;
+        private CylindersController _cylinders;
 
         private const string appConfigFileName = "app.config.json";
 
-        public CylinderController BoxCylinders { get => _cylinders; private set => _cylinders = value; }
+        public CylindersController BoxCylinders { get => _cylinders; private set => _cylinders = value; }
 
         public MeadowApp()
         {
@@ -66,7 +66,7 @@ namespace meadow_monsterbox
                 _mapleServer.AdvertiseIntervalMs = 30000; // every 30 seconds
                 _mapleServer.Start();
 
-                BoxCylinders = new CylinderController(random);
+                BoxCylinders = new CylindersController(random);
 
                 LedController.Current.SetColor(Color.Green);
             }
