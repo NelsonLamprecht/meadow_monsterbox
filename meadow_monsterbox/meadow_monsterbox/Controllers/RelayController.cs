@@ -34,8 +34,8 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
 
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,false, Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,false, Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,false,Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyClosed);
+            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,false,Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyClosed);
             initialized = true;
         }
 
@@ -51,7 +51,7 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOffLeft()
         {
-            relayLeft.IsOn = false;
+            relayLeft.IsOn = !false;
             if (_debug)
             {
                 Console.WriteLine("Relay Left Is Off.");
@@ -60,7 +60,7 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOffRight()
         {
-            relayRight.IsOn = false;
+            relayRight.IsOn = !false;
             if (_debug)
             {
                 Console.WriteLine("Relay Right Is Off.");
@@ -69,7 +69,7 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOnLeft()
         {
-            relayLeft.IsOn = true;
+            relayLeft.IsOn = !true;
             if(_debug)
             {
                 Console.WriteLine("Relay Left Is On.");
@@ -78,7 +78,7 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOnRight()
         {
-            relayRight.IsOn = true;
+            relayRight.IsOn = !true;
             if (_debug)
             {
                 Console.WriteLine("Relay Right Is On.");
