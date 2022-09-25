@@ -1,9 +1,13 @@
 ﻿using System;
 
 using Meadow.Foundation.Relays;
+using Meadow.Hardware;
 
 namespace meadow_monsterbox.Controllers
 {
+    /// <summary>
+    /// The commands all inverted since the pneumatics are keeping the values closed
+    /// </summary>
     internal class RelayController
     {
         protected bool initialized = false;
@@ -33,9 +37,11 @@ namespace meadow_monsterbox.Controllers
             {
                 return;
             }
-
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,false,Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyClosed);
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,false,Meadow.Hardware.OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyClosed);
+            // true so port is closed as quickly as possible when board boots up
+            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            TurnOffLeft();
+            TurnOffRight();
             initialized = true;
         }
 
