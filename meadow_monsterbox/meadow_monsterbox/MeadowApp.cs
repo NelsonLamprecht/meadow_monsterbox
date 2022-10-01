@@ -60,7 +60,7 @@ namespace meadow_monsterbox
                     throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
                 }                
                 _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
-                _mapleServer.AdvertiseIntervalMs = 30000; // every 30 seconds
+                _mapleServer.AdvertiseIntervalMs = 1000; // every 1 seconds
                 _mapleServer.Start();
 
                 Cylinders = new CylindersController();

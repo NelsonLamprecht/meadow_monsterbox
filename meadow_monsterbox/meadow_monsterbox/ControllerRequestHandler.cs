@@ -12,6 +12,9 @@ namespace meadow_monsterbox
     {
         public ControllerRequestHandler() { }
 
+        public override bool IsReusable => true;
+
+
         [HttpPost("/turnon")]
         public IActionResult TurnOn()
         {
