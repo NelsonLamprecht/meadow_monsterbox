@@ -4,7 +4,6 @@ using Meadow.Foundation.Web.Maple.Server.Routing;
 using Meadow.Foundation.Web.Maple.Server;
 
 using meadow_monsterbox.Controllers;
-using Meadow.Units;
 
 namespace meadow_monsterbox
 {
@@ -14,20 +13,35 @@ namespace meadow_monsterbox
 
         public override bool IsReusable => true;
 
+        //[HttpPost("/turnon")]
+        //public IActionResult TurnOn()
+        //{
+        //    LedController.Current.TurnOn();
+        //    return new OkResult();
+        //}
 
-        [HttpPost("/turnon")]
-        public IActionResult TurnOn()
+        //[HttpPost("/turnoff")]
+        //public IActionResult TurnOff()
+        //{
+        //    LedController.Current.TurnOff();
+        //    return new OkResult();
+        //}
+
+
+        [HttpPost("/sound")]
+        public async Task<IActionResult> SoundAsync()
         {
-            LedController.Current.TurnOn();
+            if (
+                byte.TryParse(QueryString["filenumber"], out var fileNumber)
+                &&
+                int.TryParse(QueryString["fileduration"], out var fileDuration)
+                )
+            {
+                await MP3Controller.Current.PlayFile(fileNumber,fileDuration);
+            }          
+
             return new OkResult();
         }
-
-        [HttpPost("/turnoff")]
-        public IActionResult TurnOff()
-        {
-            LedController.Current.TurnOff();
-            return new OkResult();
-        }       
 
         [HttpPost("/shake")]
         public async Task<IActionResult> ShakeAsync()

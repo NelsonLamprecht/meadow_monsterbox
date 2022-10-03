@@ -8,10 +8,8 @@ namespace meadow_monsterbox.Controllers
     /// <summary>
     /// The commands all inverted since the pneumatics are keeping the values closed
     /// </summary>
-    internal class RelayController
+    internal class RelayController: InitalizedBaseController
     {
-        protected bool initialized = false;
-
         private Relay relayLeft;
         private Relay relayRight;
         private bool _debug = false;
@@ -27,11 +25,9 @@ namespace meadow_monsterbox.Controllers
             Current = new RelayController();
         }
 
-        private RelayController()
-        {
-        }
+        private RelayController() {  }
 
-        public void Initialize()
+        public override void Initialize()
         {
             if (initialized)
             {
@@ -43,6 +39,8 @@ namespace meadow_monsterbox.Controllers
             TurnOffLeft();
             TurnOffRight();
             initialized = true;
+
+            base.Initialize();
         }
 
         public void DebugOff()

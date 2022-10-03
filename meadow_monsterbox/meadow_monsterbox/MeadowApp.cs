@@ -9,7 +9,7 @@ using Meadow.Devices;
 using Meadow.Foundation;
 using Meadow.Foundation.Web.Maple.Server;
 using Meadow.Gateway.WiFi;
-
+using Meadow.Gateways;
 using meadow_monsterbox.Controllers;
 
 namespace meadow_monsterbox
@@ -40,6 +40,7 @@ namespace meadow_monsterbox
             Console.WriteLine("Initializing hardware...");
             LedController.Current.Initialize();
             RelayController.Current.Initialize();
+            MP3Controller.Current.Initialize();
 
             AppConfigRoot appConfigRoot = await GetAppConfig();
 
@@ -53,14 +54,17 @@ namespace meadow_monsterbox
                 &&
                 appConfigRoot.Network.Wifi.Password != null)
             {
-
+                Device.SetAntenna(AntennaType.External);
                 ConnectionResult connectionResult = await Device.WiFiAdapter.Connect(appConfigRoot.Network.Wifi.SSID, appConfigRoot.Network.Wifi.Password);
                 if (connectionResult.ConnectionStatus != ConnectionStatus.Success)
                 {
                     throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
-                }                
-                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null);
-                _mapleServer.AdvertiseIntervalMs = 1500; // every 1 seconds
+                }
+                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null)
+                {
+                    AdvertiseIntervalMs = 1500, // every 1.5 seconds
+                    DeviceName = Device.Information.DeviceName
+                };
                 _mapleServer.Start();
 
                 Cylinders = new CylindersController();
@@ -90,7 +94,6 @@ namespace meadow_monsterbox
 
         private async Task<T> GetFileContentsAsync<T>(string path)
         {
-            Console.WriteLine("GetFileContentsAsync()");
             Console.WriteLine($"\tFile: {Path.GetFullPath(path)} ");
             try
             {

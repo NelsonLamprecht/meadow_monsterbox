@@ -7,14 +7,12 @@ using Meadow.Foundation;
 
 namespace meadow_monsterbox.Controllers
 {
-    public class LedController
+    internal class LedController: InitalizedBaseController
     {
         RgbPwmLed onBoardRGBLed;
 
         Task animationTask = null;
         CancellationTokenSource cancellationTokenSource = null;
-
-        protected bool initialized = false;
 
         public static LedController Current { get; private set; }
 
@@ -25,7 +23,7 @@ namespace meadow_monsterbox.Controllers
             Current = new LedController();
         }
 
-        public void Initialize()
+        public override void Initialize()
         {
             if (initialized)
             {
@@ -40,6 +38,8 @@ namespace meadow_monsterbox.Controllers
             onBoardRGBLed.SetColor(Color.Red);
 
             initialized = true;
+
+            base.Initialize();
         }
 
         void Stop()
