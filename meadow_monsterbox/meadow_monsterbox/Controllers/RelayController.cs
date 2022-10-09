@@ -34,8 +34,8 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
             // true so port is closed as quickly as possible when board boots up
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D03,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D04,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D05,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D06,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
             TurnOffLeft();
             TurnOffRight();
             initialized = true;
