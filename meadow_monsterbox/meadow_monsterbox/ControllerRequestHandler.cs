@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 using Meadow.Foundation.Web.Maple.Server.Routing;
 using Meadow.Foundation.Web.Maple.Server;
@@ -31,15 +33,16 @@ namespace meadow_monsterbox
         [HttpPost("/sound")]
         public async Task<IActionResult> SoundAsync()
         {
-            if (
-                byte.TryParse(QueryString["filenumber"], out var fileNumber)
-                &&
-                int.TryParse(QueryString["fileduration"], out var fileDuration)
-                )
+            try
             {
-                await MP3Controller.Current.PlayFile(fileNumber,fileDuration);
-            }          
-
+                var fileNumber = Convert.ToByte(QueryString["filenumber"]);
+                var fileDuration = Convert.ToInt32(QueryString["fileduration"]);
+                await MP3Controller.Current.PlayFile(fileNumber, fileDuration);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex);
+            }
             return new OkResult();
         }
 

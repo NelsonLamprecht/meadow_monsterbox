@@ -31,18 +31,20 @@ namespace meadow_monsterbox.Controllers
             initialized = true;      
             
             base.Initialize();
-        }       
-        
+        }
+
 
         public async Task PlayFile(byte fileNumber, int lengthOfFileInSeconds)
         {
+            Console.WriteLine(Environment.NewLine);
             Console.WriteLine($"Playing file: {fileNumber} for {lengthOfFileInSeconds} seconds.");
-            _mp3Player.Play(fileNumber);
+
+            Byte byteStepUp = (byte)(fileNumber + 1);
+            _mp3Player.Play(byteStepUp);
 
             await Task.Delay((lengthOfFileInSeconds + 1) * 1000);
 
-            _mp3Player.Stop();
-            Console.WriteLine("Stopping playing file.");
+            _mp3Player.Reset();
         }
     }
 }
