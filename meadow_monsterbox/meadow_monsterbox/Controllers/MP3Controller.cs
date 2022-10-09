@@ -43,8 +43,6 @@ namespace meadow_monsterbox.Controllers
             _mp3Player.Play(byteStepUp);
 
             await Task.Delay((lengthOfFileInSeconds + 1) * 1000);
-
-            _mp3Player.Reset();
         }
     }
 }
