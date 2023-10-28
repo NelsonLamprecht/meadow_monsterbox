@@ -1,115 +1,94 @@
 ﻿using System;
-using System.IO;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 
-using Meadow;
-using Meadow.Devices;
 using Meadow.Foundation;
-using Meadow.Foundation.Web.Maple.Server;
-using Meadow.Gateway.WiFi;
-using Meadow.Gateways;
+using Meadow.Hardware;
+
+using Wiese.Shared;
+
+using meadow_monsterbox.Controllers.LEDController;
+using meadow_monsterbox.Services.DiagnosticsService;
+using meadow_monsterbox.Services.MapleService;
+using meadow_monsterbox.Services.NetworkService;
+using meadow_monsterbox.Services.Watchdog;
+
 using meadow_monsterbox.Controllers;
 
 namespace meadow_monsterbox
 {
-    public class MeadowApp : App<F7FeatherV1, MeadowApp>
+    public class MeadowApp : MeadowBase
     {
-        private const string appConfigFileName = "app.config.json";
-        private MapleServer _mapleServer;
-        private CylindersController _cylinders;
+        private ILEDDeviceController _ledDevice;
 
-        public CylindersController Cylinders { get => _cylinders; private set => _cylinders = value; }
+        public override async Task Initialize()
+        {
+            var network = Device.NetworkAdapters.Primary<IWiFiNetworkAdapter>();
+            network.SetAntenna(AntennaType.External);
+            network.NetworkConnected += NetworkConnected;
 
-        public MeadowApp()
+            Services.Add(network);
+
+            //rework the device dependancy for the controller so its not just the meadow device
+            _ledDevice = Services.Create<OnBoardLEDDeviceController, ILEDDeviceController>();
+
+            var leftRelayController = new RelayController(this.Logger,this.MeadowDevice);
+            leftRelayController.Initialize(Device.Pins.D05);
+            var rightRelayController = new RelayController(this.Logger, this.MeadowDevice);
+            rightRelayController.Initialize(Device.Pins.D06);
+
+            var pairedRelayController = new PairedRelayController(this.Logger, leftRelayController, rightRelayController);
+            Services.Add(pairedRelayController);
+
+            var mp3Controller = Services.Create<MP3Controller>();
+            mp3Controller.Initialize();
+
+            Services.Create<WatchdogService, IWatchdogService>();
+            Services.Create<DiagnosticsService>();
+            Services.Create<NetworkService>();
+            Services.Create<MapleService>();
+
+            await base.Initialize();
+        }
+
+        public override async Task Run()
         {
             try
             {
-                Device.Information.DeviceName = "MeadowF7v1-1";
-                Initialize().Wait();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
+                Logger.Debug($"+Run");
 
-        private async Task Initialize()
-        {
-            Console.WriteLine("Initializing hardware...");
-            LedController.Current.Initialize();
-            RelayController.Current.Initialize();
-            MP3Controller.Current.Initialize();
+                var diagnostics = Services.Get<DiagnosticsService>();
+                diagnostics.OutputDeviceInfo();
+                diagnostics.OutputMeadowOSInfo();
+                diagnostics.OutputNtpInfo();
 
-            AppConfigRoot appConfigRoot = await GetAppConfig();
+                var w = Services.Get<IWatchdogService>();
+                w.Enable(15);
+                w.Pet(10);
 
-            if (appConfigRoot != null
-                &&
-                appConfigRoot.Network != null
-                &&
-                appConfigRoot.Network.Wifi != null
-                &&
-                appConfigRoot.Network.Wifi.SSID != null
-                &&
-                appConfigRoot.Network.Wifi.Password != null)
-            {
-                Device.SetAntenna(AntennaType.External);
-                ConnectionResult connectionResult = await Device.WiFiAdapter.Connect(appConfigRoot.Network.Wifi.SSID, appConfigRoot.Network.Wifi.Password);
-                if (connectionResult.ConnectionStatus != ConnectionStatus.Success)
-                {
-                    throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
-                }
-                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null)
-                {
-                    AdvertiseIntervalMs = 1500, // every 1.5 seconds
-                    DeviceName = Device.Information.DeviceName
-                };
-                _mapleServer.Start();
+                var relayController = Services.Get<RelayController>();
+                await relayController.Run();
 
-                Cylinders = new CylindersController();
-
-                LedController.Current.SetColor(Color.Green);
-            }
-            else
-            {
-                throw new Exception("Unable to get network configuration from file.");
-            }
-        }
-
-        private async Task<AppConfigRoot> GetAppConfig()
-        {
-            var appConfigFilePath = Path.Combine(MeadowOS.FileSystem.UserFileSystemRoot, appConfigFileName);
-            var appConfig = await GetFileContentsAsync<AppConfigRoot>(appConfigFilePath);
-            if (appConfig != default)
-            {
-                Console.WriteLine(Environment.NewLine);
-                Console.WriteLine("Network:");
-                Console.WriteLine($"\tSSID: {appConfig.Network.Wifi.SSID}");
-                Console.WriteLine($"\tPassword: {appConfig.Network.Wifi.Password}");
+                _ledDevice.StartBlink(Color.Blue);
             }
 
-            return appConfig;
-        }
-
-        private async Task<T> GetFileContentsAsync<T>(string path)
-        {
-            Console.WriteLine($"\tFile: {Path.GetFullPath(path)} ");
-            try
-            {
-                using (var fileStream = File.Open(path, FileMode.Open, FileAccess.Read))
-                using (var streamReader = new StreamReader(fileStream, Encoding.UTF8))
-                {
-                    var fileContents = await streamReader.ReadToEndAsync();
-                    var result = JsonSerializer.Deserialize<T>(fileContents);
-                    return result;
-                }
-            }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                _ledDevice.SetColor(Color.Red);
+                Logger.Error(ex.ToString());
             }
-            return default;
+            await base.Run();
+        }
+
+        private void NetworkConnected(INetworkAdapter sender, NetworkConnectionEventArgs args)
+        {
+            var networkService = Services.Get<NetworkService>();
+            networkService.NetworkIsConnected(sender);
+
+            var mapleService = Services.Get<MapleService>();
+            mapleService.Run();
+
+            var ledDeviceController = Services.Get<ILEDDeviceController>();
+            ledDeviceController.StartBlink(Color.Green);
         }
     }
 }

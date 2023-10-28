@@ -1,0 +1,11 @@
+<Project Sdk="Meadow.Sdk/1.1.0">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>Wiese.Shared</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Meadow.F7" Version="1.3.4" />
+    <PackageReference Include="Meadow.Foundation" Version="*" />
+  </ItemGroup>
+</Project>

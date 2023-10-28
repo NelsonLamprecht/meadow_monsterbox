@@ -1,23 +1,32 @@
 ﻿using System;
 using System.Threading.Tasks;
 
+using meadow_monsterbox.Controllers;
+using Meadow.Logging;
+
 namespace meadow_monsterbox.Controllers
 {
-    public class CylindersController
+    public class PairedRelayController
     {
         private readonly Random _random;
+        private readonly RelayController leftRelayController;
+        private readonly RelayController rightRelayController;
 
-        public CylindersController()
+        public PairedRelayController(Logger logger, RelayController leftRelayController, RelayController rightRelayController)
         {
+            Logger = logger;
+            this.leftRelayController = leftRelayController;
+            this.rightRelayController = rightRelayController;
             _random = new Random();
         }
+
+        public Logger Logger { get; }
 
         public async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
-            Console.WriteLine("Shake.");
-            Console.WriteLine(Environment.NewLine);
-            Console.WriteLine($"Iterations: {config.GetIterations()}");
+            Logger.Debug("Shake.");
+            Logger.Info($"Iterations: {config.GetIterations()}");
 
             for (int i = 0; i <= config.GetIterations() ; i++)
             {
@@ -38,35 +47,35 @@ namespace meadow_monsterbox.Controllers
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOffLeft();
+                    leftRelayController.TurnOff();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOffRight();
+                    rightRelayController.TurnOff();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
             else if (randomNumber == 1)
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOnLeft();
+                    leftRelayController.TurnOn();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOnRight();
+                    rightRelayController.TurnOn();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
         }
 
         private void Stop()
         {
-            Console.WriteLine("Stop.");
-            RelayController.Current.TurnOffLeft();
-            RelayController.Current.TurnOffRight();
+            Logger.Info("Stop.");
+            leftRelayController.TurnOff();
+            rightRelayController.TurnOff();
         }
     }   
 }

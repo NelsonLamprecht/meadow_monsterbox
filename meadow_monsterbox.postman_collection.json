@@ -1,0 +1,198 @@
+{
+	"info": {
+		"_postman_id": "45c15458-baba-42bc-9cad-12792ac02d54",
+		"name": "meadow_monsterbox",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "978946"
+	},
+	"item": [
+		{
+			"name": "shake",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{meadow_host}}/shake?bi=40&ei=60&bd=60&ed=80",
+					"host": [
+						"{{meadow_host}}"
+					],
+					"path": [
+						"shake"
+					],
+					"query": [
+						{
+							"key": "bi",
+							"value": "40"
+						},
+						{
+							"key": "ei",
+							"value": "60"
+						},
+						{
+							"key": "bd",
+							"value": "60"
+						},
+						{
+							"key": "ed",
+							"value": "80"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "sound",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{meadow_host}}/sound?filenumber=1&fileduration=9",
+					"host": [
+						"{{meadow_host}}"
+					],
+					"path": [
+						"sound"
+					],
+					"query": [
+						{
+							"key": "filenumber",
+							"value": "1"
+						},
+						{
+							"key": "fileduration",
+							"value": "9"
+						}
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "sound 1 duration 9",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{meadow_host}}/sound?filenumber=1&fileduration=9",
+							"host": [
+								"{{meadow_host}}"
+							],
+							"path": [
+								"sound"
+							],
+							"query": [
+								{
+									"key": "filenumber",
+									"value": "1"
+								},
+								{
+									"key": "fileduration",
+									"value": "9"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "plain",
+					"header": [
+						{
+							"key": "Server",
+							"value": "Mono-HTTPAPI/1.0"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 01 Jan 2000 00:32:03 GMT"
+						},
+						{
+							"key": "Content-Length",
+							"value": "0"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=15,max=100"
+						}
+					],
+					"cookie": [],
+					"body": null
+				},
+				{
+					"name": "sound 2 duration 3",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{meadow_host}}/sound?filenumber=2&fileduration=3",
+							"host": [
+								"{{meadow_host}}"
+							],
+							"path": [
+								"sound"
+							],
+							"query": [
+								{
+									"key": "filenumber",
+									"value": "2"
+								},
+								{
+									"key": "fileduration",
+									"value": "3"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "plain",
+					"header": [
+						{
+							"key": "Server",
+							"value": "Mono-HTTPAPI/1.0"
+						},
+						{
+							"key": "Date",
+							"value": "Sat, 01 Jan 2000 00:32:03 GMT"
+						},
+						{
+							"key": "Content-Length",
+							"value": "0"
+						},
+						{
+							"key": "Keep-Alive",
+							"value": "timeout=15,max=100"
+						}
+					],
+					"cookie": [],
+					"body": null
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "meadow_host",
+			"value": "http://192.168.1.91:5417",
+			"type": "string"
+		}
+	]
+}

@@ -2,32 +2,46 @@
 using System.Diagnostics;
 using System.Threading.Tasks;
 
-using Meadow.Foundation.Web.Maple.Server.Routing;
-using Meadow.Foundation.Web.Maple.Server;
+using Meadow;
+using Meadow.Foundation.Web.Maple;
+using Meadow.Foundation.Web.Maple.Routing;
+using Meadow.Logging;
 
 using meadow_monsterbox.Controllers;
 
-namespace meadow_monsterbox
+namespace meadow_monsterbox.Services.MapleService
 {
     public class ControllerRequestHandler : RequestHandlerBase
     {
-        public ControllerRequestHandler() { }
+        public ControllerRequestHandler()
+        {
+        }
 
         public override bool IsReusable => true;
 
-        //[HttpPost("/turnon")]
-        //public IActionResult TurnOn()
-        //{
-        //    LedController.Current.TurnOn();
-        //    return new OkResult();
-        //}
+        private Logger Logger
+        {
+            get
+            {
+                return Resolver.Log;
+            }
+        }
 
-        //[HttpPost("/turnoff")]
-        //public IActionResult TurnOff()
-        //{
-        //    LedController.Current.TurnOff();
-        //    return new OkResult();
-        //}
+        private PairedRelayController PairedRelayController
+        {
+            get
+            {
+                return Resolver.Services.Get<PairedRelayController>();
+            }
+        }
+
+        private MP3Controller MP3Controller
+        {
+            get
+            {
+                return Resolver.Services.Get<MP3Controller>();
+            }
+        }
 
 
         [HttpPost("/sound")]
@@ -37,11 +51,11 @@ namespace meadow_monsterbox
             {
                 var fileNumber = Convert.ToByte(QueryString["filenumber"]);
                 var fileDuration = Convert.ToInt32(QueryString["fileduration"]);
-                await MP3Controller.Current.PlayFile(fileNumber, fileDuration);
+                await MP3Controller.PlayFile(fileNumber, fileDuration);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
+                Logger.Error(ex.ToString());
             }
             return new OkResult();
         }
@@ -71,7 +85,7 @@ namespace meadow_monsterbox
                 config.EndDelay = endDelay;
             }
 
-            await MeadowApp.Current.Cylinders.ShakeAsync(config);
+            await PairedRelayController.ShakeAsync(config);
             return new OkResult();
         }
     }
