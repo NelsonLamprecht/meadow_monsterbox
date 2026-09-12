@@ -1,46 +1,40 @@
 ﻿using System;
 
+using Meadow;
 using Meadow.Foundation.Relays;
 using Meadow.Hardware;
+using Meadow.Peripherals.Relays;
 
 namespace meadow_monsterbox.Controllers
 {
     /// <summary>
     /// The commands all inverted since the pneumatics are keeping the values closed
     /// </summary>
-    internal class RelayController: InitalizedBaseController
+    internal class RelayController : IDisposable
     {
+        private IDigitalOutputPort _leftRelayPort;
+        private IDigitalOutputPort _rightRelayPort;
         private Relay relayLeft;
         private Relay relayRight;
         private bool _debug = false;
+        private bool initialized = false;
 
-        public static RelayController Current
-        {
-            get;
-            private set;
-        }
-
-        static RelayController()
-        {
-            Current = new RelayController();
-        }
-
-        private RelayController() {  }
-
-        public override void Initialize()
+        public void Initialize()
         {
             if (initialized)
             {
                 return;
             }
             // true so port is closed as quickly as possible when board boots up
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D05,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D06,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            _leftRelayPort = MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D05, true, OutputType.OpenDrain);
+            _rightRelayPort = MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D06, true, OutputType.OpenDrain);
+            relayLeft = new Relay(_leftRelayPort, RelayType.NormallyOpen);
+            relayRight = new Relay(_rightRelayPort, RelayType.NormallyOpen);
             TurnOffLeft();
             TurnOffRight();
             initialized = true;
 
-            base.Initialize();
+            Resolver.Log.Info($"{GetType().Name} is initialized.");
         }
 
         public void DebugOff()
@@ -55,38 +49,44 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOffLeft()
         {
-            relayLeft.IsOn = !false;
+            relayLeft.State = RelayState.Open;
             if (_debug)
             {
-                Console.WriteLine("Relay Left Is Off.");
+                Resolver.Log.Info("Relay Left Is Off.");
             }
         }
 
         public void TurnOffRight()
         {
-            relayRight.IsOn = !false;
+            relayRight.State = RelayState.Open;
             if (_debug)
             {
-                Console.WriteLine("Relay Right Is Off.");
+                Resolver.Log.Info("Relay Right Is Off.");
             }
         }
 
         public void TurnOnLeft()
         {
-            relayLeft.IsOn = !true;
+            relayLeft.State = RelayState.Closed;
             if(_debug)
             {
-                Console.WriteLine("Relay Left Is On.");
+                Resolver.Log.Info("Relay Left Is On.");
             }
         }
 
         public void TurnOnRight()
         {
-            relayRight.IsOn = !true;
+            relayRight.State = RelayState.Closed;
             if (_debug)
             {
-                Console.WriteLine("Relay Right Is On.");
+                Resolver.Log.Info("Relay Right Is On.");
             }
+        }
+
+        public void Dispose()
+        {
+            _leftRelayPort?.Dispose();
+            _rightRelayPort?.Dispose();
         }
     }
 }

@@ -2,28 +2,21 @@
 using System.Threading.Tasks;
 using System.Threading;
 
+using Meadow;
 using Meadow.Foundation.Leds;
-using Meadow.Foundation;
 
 namespace meadow_monsterbox.Controllers
 {
-    internal class LedController: InitalizedBaseController
+    internal class LedController : IDisposable
     {
         RgbPwmLed onBoardRGBLed;
 
         Task animationTask = null;
         CancellationTokenSource cancellationTokenSource = null;
 
-        public static LedController Current { get; private set; }
+        bool initialized = false;
 
-        private LedController() { }
-
-        static LedController()
-        {
-            Current = new LedController();
-        }
-
-        public override void Initialize()
+        public void Initialize()
         {
             if (initialized)
             {
@@ -31,7 +24,6 @@ namespace meadow_monsterbox.Controllers
             }
 
             onBoardRGBLed = new RgbPwmLed(
-                device: MeadowApp.Device,
                 redPwmPin: MeadowApp.Device.Pins.OnboardLedRed,
                 greenPwmPin: MeadowApp.Device.Pins.OnboardLedGreen,
                 bluePwmPin: MeadowApp.Device.Pins.OnboardLedBlue);
@@ -39,12 +31,12 @@ namespace meadow_monsterbox.Controllers
 
             initialized = true;
 
-            base.Initialize();
+            Resolver.Log.Info($"{GetType().Name} is initialized.");
         }
 
         void Stop()
         {
-            onBoardRGBLed.Stop();
+            onBoardRGBLed.StopAnimation();
             cancellationTokenSource?.Cancel();
         }
 
@@ -81,7 +73,7 @@ namespace meadow_monsterbox.Controllers
 
         public void StartRunningColors()
         {
-            onBoardRGBLed.Stop();
+            onBoardRGBLed.StopAnimation();
 
             animationTask = new Task(async () =>
             {
@@ -108,7 +100,13 @@ namespace meadow_monsterbox.Controllers
         protected Color GetRandomColor()
         {
             var random = new Random();
-            return Color.FromHsba(random.NextDouble(), 1, 1);
+            return Color.FromHsba((float)random.NextDouble(), 1, 1);
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource?.Cancel();
+            onBoardRGBLed?.Dispose();
         }
     }
 }

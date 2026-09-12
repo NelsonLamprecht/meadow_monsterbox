@@ -1,0 +1,3 @@
+Coprocessor:
+    AutomaticallyStartNetwork: true
+    AutomaticallyReconnect: true

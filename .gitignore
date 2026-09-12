@@ -351,3 +351,4 @@ MigrationBackup/
 
 # MonsterBox
 *.config.json
+wifi.config.yaml

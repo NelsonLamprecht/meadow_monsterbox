@@ -1,5 +1,7 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
+
+using Meadow;
 
 namespace meadow_monsterbox.Controllers
 {
@@ -15,9 +17,7 @@ namespace meadow_monsterbox.Controllers
         public async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
-            Console.WriteLine("Shake.");
-            Console.WriteLine(Environment.NewLine);
-            Console.WriteLine($"Iterations: {config.GetIterations()}");
+            Resolver.Log.Info($"Shake. Iterations: {config.GetIterations()}");
 
             for (int i = 0; i <= config.GetIterations() ; i++)
             {
@@ -28,6 +28,8 @@ namespace meadow_monsterbox.Controllers
 
         private async Task ActionAsync(ShakeConfiguration config)
         {
+            var relayController = Resolver.Services.Get<RelayController>();
+
             // either turn it on or turn it off
             var randomNumber = _random.Next(0, 2);
 
@@ -38,35 +40,36 @@ namespace meadow_monsterbox.Controllers
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOffLeft();
+                    relayController.TurnOffLeft();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOffRight();
+                    relayController.TurnOffRight();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
             else if (randomNumber == 1)
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOnLeft();
+                    relayController.TurnOnLeft();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOnRight();
+                    relayController.TurnOnRight();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
         }
 
         private void Stop()
         {
-            Console.WriteLine("Stop.");
-            RelayController.Current.TurnOffLeft();
-            RelayController.Current.TurnOffRight();
+            Resolver.Log.Info("Stop.");
+            var relayController = Resolver.Services.Get<RelayController>();
+            relayController.TurnOffLeft();
+            relayController.TurnOffRight();
         }
-    }   
+    }
 }

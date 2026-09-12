@@ -1,9 +1,9 @@
-﻿using System;
-using System.Diagnostics;
+using System;
 using System.Threading.Tasks;
 
-using Meadow.Foundation.Web.Maple.Server.Routing;
-using Meadow.Foundation.Web.Maple.Server;
+using Meadow;
+using Meadow.Foundation.Web.Maple.Routing;
+using Meadow.Foundation.Web.Maple;
 
 using meadow_monsterbox.Controllers;
 
@@ -15,21 +15,6 @@ namespace meadow_monsterbox
 
         public override bool IsReusable => true;
 
-        //[HttpPost("/turnon")]
-        //public IActionResult TurnOn()
-        //{
-        //    LedController.Current.TurnOn();
-        //    return new OkResult();
-        //}
-
-        //[HttpPost("/turnoff")]
-        //public IActionResult TurnOff()
-        //{
-        //    LedController.Current.TurnOff();
-        //    return new OkResult();
-        //}
-
-
         [HttpPost("/sound")]
         public async Task<IActionResult> SoundAsync()
         {
@@ -37,11 +22,11 @@ namespace meadow_monsterbox
             {
                 var fileNumber = Convert.ToByte(QueryString["filenumber"]);
                 var fileDuration = Convert.ToInt32(QueryString["fileduration"]);
-                await MP3Controller.Current.PlayFile(fileNumber, fileDuration);
+                await Resolver.Services.Get<MP3Controller>().PlayFile(fileNumber, fileDuration);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex);
+                Resolver.Log.Error(ex.Message);
             }
             return new OkResult();
         }
@@ -71,7 +56,7 @@ namespace meadow_monsterbox
                 config.EndDelay = endDelay;
             }
 
-            await MeadowApp.Current.Cylinders.ShakeAsync(config);
+            await Resolver.Services.Get<CylindersController>().ShakeAsync(config);
             return new OkResult();
         }
     }
