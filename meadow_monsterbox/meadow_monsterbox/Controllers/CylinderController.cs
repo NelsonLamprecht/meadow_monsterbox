@@ -2,22 +2,25 @@ using System;
 using System.Threading.Tasks;
 
 using Meadow;
+using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    public class CylindersController
+    internal class CylindersController : BaseController
     {
+        private readonly RelayController relayController;
         private readonly Random _random;
 
-        public CylindersController()
+        public CylindersController(Logger logger, RelayController relayController) : base(logger)
         {
+            this.relayController = relayController;
             _random = new Random();
         }
 
         public async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
-            Resolver.Log.Info($"Shake. Iterations: {config.GetIterations()}");
+            Logger.Info($"Shake. Iterations: {config.GetIterations()}");
 
             for (int i = 0; i <= config.GetIterations() ; i++)
             {
@@ -28,8 +31,6 @@ namespace meadow_monsterbox.Controllers
 
         private async Task ActionAsync(ShakeConfiguration config)
         {
-            var relayController = Resolver.Services.Get<RelayController>();
-
             // either turn it on or turn it off
             var randomNumber = _random.Next(0, 2);
 
@@ -66,8 +67,7 @@ namespace meadow_monsterbox.Controllers
 
         private void Stop()
         {
-            Resolver.Log.Info("Stop.");
-            var relayController = Resolver.Services.Get<RelayController>();
+            Logger.Info("Stop.");
             relayController.TurnOffLeft();
             relayController.TurnOffRight();
         }

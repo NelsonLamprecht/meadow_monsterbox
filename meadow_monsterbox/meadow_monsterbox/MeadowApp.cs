@@ -5,94 +5,102 @@ using Meadow;
 using Meadow.Devices;
 using Meadow.Foundation.Web.Maple;
 using Meadow.Hardware;
+
 using meadow_monsterbox.Controllers;
+using meadow_monsterbox.Services.DiagnosticsService;
+using meadow_monsterbox.Services.MapleService;
+using meadow_monsterbox.Services.NetworkService;
+using meadow_monsterbox.Services.Watchdog;
 
 namespace meadow_monsterbox
 {
-    public class MeadowApp : App<F7FeatherV1>
+    public class MeadowApp : MeadowBase
     {
-        private MapleServer _mapleServer;
         private bool _servicesStarted = false;
 
         public override async Task Initialize()
         {
-            Resolver.Log.Info("Initializing hardware...");
+            Logger.Info("Initializing hardware...");
             Device.Information.DeviceName = "Monsterbox-v1";
-
-            var ledController = new LedController();
-            ledController.Initialize();
-            Resolver.Services.Add(ledController);
-
-            var relayController = new RelayController();
-            relayController.Initialize();
-            Resolver.Services.Add(relayController);
-
-            var mp3Controller = new MP3Controller();
-            mp3Controller.Initialize();
-            Resolver.Services.Add(mp3Controller);
 
             var wifiAdapter = Device.NetworkAdapters.Primary<IWiFiNetworkAdapter>();
 
             // this device always runs on the external antenna; persisted so it's already
             // in effect before AutomaticallyStartNetwork connects on every boot after the first
             wifiAdapter.SetAntenna(AntennaType.External, true);
+            Services.Add(wifiAdapter);
+
+            var ledController = Services.Create<LedController>();
+            ledController.Initialize();
+
+            var relayController = Services.Create<RelayController>();
+            relayController.Initialize(Device.Pins.D05, Device.Pins.D06);
+
+            var mp3Controller = Services.Create<MP3Controller>();
+            mp3Controller.Initialize();
+
+            Services.Create<DiagnosticsService>();
+            Services.Create<WatchdogService, IWatchdogService>();
+            Services.Create<NetworkService>();
+            Services.Create<CylindersController>();
+            Services.Create<MapleService>();
 
             wifiAdapter.NetworkConnected += OnWifiConnected;
             wifiAdapter.NetworkDisconnected += (sender, args) =>
-                Resolver.Log.Warn("WiFi disconnected.");
+                Logger.Warn("WiFi disconnected.");
 
             await base.Initialize();
         }
 
         public override Task Run()
         {
+            var watchdog = Services.Get<IWatchdogService>();
+            watchdog.Enable(15);
+            watchdog.Pet(10);
+
             // network connection is handled by Meadow OS via wifi.config.yaml and
             // AutomaticallyStartNetwork in meadow.config.yaml; see OnWifiConnected
-            Resolver.Log.Info("Running. Waiting for WiFi connection...");
+            Logger.Info("Running. Waiting for WiFi connection...");
             return base.Run();
         }
 
         private void OnWifiConnected(INetworkAdapter sender, NetworkConnectionEventArgs args)
         {
-            Resolver.Log.Info($"WiFi connected. IP: {args.IpAddress}");
+            Logger.Info($"WiFi connected. IP: {args.IpAddress}");
 
-            // AutomaticallyReconnect can raise this again after a drop; only start services once
+            var networkService = Services.Get<NetworkService>();
+            networkService.NetworkIsConnected(sender);
+
+            // AutomaticallyReconnect can raise this again after a drop; only start the Maple server once
             if (_servicesStarted)
             {
                 return;
             }
             _servicesStarted = true;
 
-            _mapleServer = new MapleServer(args.IpAddress, 5417, true, RequestProcessMode.Serial, null)
-            {
-                AdvertiseIntervalMs = 1500, // every 1.5 seconds
-                DeviceName = Device.Information.DeviceName
-            };
-            _mapleServer.Start();
+            Services.Get<MapleService>().Run();
 
-            Resolver.Services.Add(new CylindersController());
-
-            Resolver.Services.Get<LedController>().SetColor(Color.Green);
+            Services.Get<LedController>().SetColor(Color.Green);
         }
 
         public override Task OnError(Exception e)
         {
-            Resolver.Log.Error($"Unhandled application error: {e.Message}");
+            Logger.Error($"Unhandled application error: {e.Message}");
             return base.OnError(e);
         }
 
         public override Task OnShutdown()
         {
-            Resolver.Log.Info("Shutting down...");
+            Logger.Info("Shutting down...");
 
-            if (Resolver.Services.ContainsRegisteredType<LedController>())
+            if (Services.ContainsRegisteredType<LedController>())
             {
-                Resolver.Services.Get<LedController>().Dispose();
+                Services.Get<LedController>().Dispose();
             }
 
-            if (Resolver.Services.ContainsRegisteredType<RelayController>())
+            if (Services.ContainsRegisteredType<RelayController>())
             {
-                Resolver.Services.Get<RelayController>().Dispose();
+                Services.Get<RelayController>().Dispose();
             }
 
             return base.OnShutdown();

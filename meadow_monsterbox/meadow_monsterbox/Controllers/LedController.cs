@@ -1,20 +1,29 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Threading;
 
 using Meadow;
+using Meadow.Devices;
 using Meadow.Foundation.Leds;
+using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    internal class LedController : IDisposable
+    internal class LedController : BaseController, IDisposable
     {
+        private readonly IMeadowDevice device;
+
         RgbPwmLed onBoardRGBLed;
 
         Task animationTask = null;
         CancellationTokenSource cancellationTokenSource = null;
 
         bool initialized = false;
+
+        public LedController(Logger logger, IMeadowDevice device) : base(logger)
+        {
+            this.device = device;
+        }
 
         public void Initialize()
         {
@@ -23,15 +32,18 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
 
-            onBoardRGBLed = new RgbPwmLed(
-                redPwmPin: MeadowApp.Device.Pins.OnboardLedRed,
-                greenPwmPin: MeadowApp.Device.Pins.OnboardLedGreen,
-                bluePwmPin: MeadowApp.Device.Pins.OnboardLedBlue);
-            onBoardRGBLed.SetColor(Color.Red);
+            if (device is F7FeatherV1 f7Device)
+            {
+                onBoardRGBLed = new RgbPwmLed(
+                    redPwmPin: f7Device.Pins.OnboardLedRed,
+                    greenPwmPin: f7Device.Pins.OnboardLedGreen,
+                    bluePwmPin: f7Device.Pins.OnboardLedBlue);
+                onBoardRGBLed.SetColor(Color.Red);
+            }
 
             initialized = true;
 
-            Resolver.Log.Info($"{GetType().Name} is initialized.");
+            Logger.Info($"{GetType().Name} is initialized.");
         }
 
         void Stop()
