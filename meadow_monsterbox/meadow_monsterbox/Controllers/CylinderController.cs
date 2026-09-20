@@ -20,9 +20,10 @@ namespace meadow_monsterbox.Controllers
         public async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
-            Logger.Info($"Shake. Iterations: {config.GetIterations()}");
+            var iterations = config.GetIterations();
+            Logger.Info($"Shake. Iterations: {iterations}");
 
-            for (int i = 0; i <= config.GetIterations() ; i++)
+            for (int i = 0; i <= iterations; i++)
             {
                 await ActionAsync(config);
             }
