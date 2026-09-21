@@ -33,9 +33,11 @@ namespace meadow_monsterbox.Controllers
             {
                 return;
             }
-            // true so port is closed as quickly as possible when board boots up
-            _leftRelayPort = device.CreateDigitalOutputPort(leftPin, true, OutputType.OpenDrain);
-            _rightRelayPort = device.CreateDigitalOutputPort(rightPin, true, OutputType.OpenDrain);
+            // true so port is closed as quickly as possible when board boots up.
+            // PushPull actively drives both levels, so the GPIO never depends on (or
+            // gets exposed to) the relay board's onboard 5V pull-up like OpenDrain would.
+            _leftRelayPort = device.CreateDigitalOutputPort(leftPin, true, OutputType.PushPull);
+            _rightRelayPort = device.CreateDigitalOutputPort(rightPin, true, OutputType.PushPull);
             relayLeft = new Relay(_leftRelayPort, RelayType.NormallyOpen);
             relayRight = new Relay(_rightRelayPort, RelayType.NormallyOpen);
             TurnOffLeft();
