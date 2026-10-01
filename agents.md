@@ -53,11 +53,16 @@ Prefer the second pattern (resolve concrete pins at the composition root, inject
 
 ## Watchdog
 
-`WatchdogService : BaseService, IWatchdogService` wraps `device.WatchdogEnable(...)`/`WatchdogReset()`. `Enable(seconds)` arms it; `Pet(seconds)` spins up an **independent background `Thread`** that resets the watchdog on its own schedule. This independence is intentional: it means a long-blocking request handler (e.g. MP3 playback holding the Maple request thread for up to ~14s under `RequestProcessMode.Serial`) doesn't risk tripping the watchdog — petting isn't coupled to request handling at all. Current values here (15s timeout / 10s pet interval) were copied from `meadow_scarecrow`; retune against real command durations if commands ever run longer.
+`WatchdogService : BaseService, IWatchdogService` wraps `device.WatchdogEnable(...)`/`WatchdogReset()`. `Enable(seconds)` arms it; `Pet(seconds)` spins up an **independent background `Thread`** that resets the watchdog on its own schedule. This independence is intentional: petting isn't coupled to request handling at all, so a slow or blocking handler can't trip the watchdog (the `shake`/`sound` handlers now return immediately and run their work in the background, but the decoupling still protects against future handlers that block). Current values here (15s timeout / 10s pet interval) were copied from `meadow_scarecrow`; retune against real command durations if commands ever run longer.
 
 ## Maple HTTP server: `Serial` vs `Parallel`
 
-`MapleService.Run()` builds the `MapleServer` with `RequestProcessMode.Serial` here — deliberately, because `shake` (relay sequencing with delays) and `sound` (MP3 playback with a timed delay) must not run concurrently with each other or themselves. `meadow_scarecrow` uses `RequestProcessMode.Parallel` instead, because its `up`/`down` relay commands are simple, non-overlapping toggles with no meaningful concurrency hazard. **When replicating this pattern in a new project, choose the mode based on whether your command handlers have shared mutable state or hardware that can't tolerate concurrent access** — don't default to one or the other without thinking about it.
+`MapleService.Run()` builds the `MapleServer` with `RequestProcessMode.Serial` here. Neither the `shake` nor the `sound` handler waits for its work to finish, so the HTTP response is fast and a `sound` can play while a `shake` runs (they're often triggered close together):
+
+- `CylindersController.TryShake()` runs the shake sequence in the background, guarded by an `Interlocked` busy flag — a second `shake` during a shake is logged and ignored (still returns `200 OK`).
+- `MP3Controller.PlayFile()` just sends the Yx5300 a play command and returns; a new `sound` during playback **cuts off** the current track (the module switches on a new play command). Playback is deliberately *not* polled for completion — that background `GetStatus()` traffic could collide with a new `Play()` on the UART, and the Yx5300 driver's response reader is fragile under overlapping reads.
+
+Serial mode is what makes the MP3 side safe: it guarantees two `Play()` UART writes never run concurrently. Don't switch to `Parallel` without adding a lock around UART access in `MP3Controller`. `meadow_scarecrow` uses `RequestProcessMode.Parallel` instead, because its `up`/`down` relay commands are simple, non-overlapping toggles with no meaningful concurrency hazard. **When replicating this pattern in a new project, choose the mode based on whether your command handlers have shared mutable state or hardware that can't tolerate concurrent access** — don't default to one or the other without thinking about it.
 
 ## Adding a new controller or service
 

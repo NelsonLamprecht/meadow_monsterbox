@@ -352,3 +352,5 @@ MigrationBackup/
 # MonsterBox
 *.config.json
 wifi.config.yaml
+diode-install-plan.md
+.claude/settings.local.json

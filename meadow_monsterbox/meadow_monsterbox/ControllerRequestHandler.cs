@@ -1,5 +1,4 @@
 using System;
-using System.Threading.Tasks;
 
 using Meadow;
 using Meadow.Foundation.Web.Maple.Routing;
@@ -11,18 +10,28 @@ namespace meadow_monsterbox
 {
     public class ControllerRequestHandler : RequestHandlerBase
     {
-        public ControllerRequestHandler() { }
+        private readonly MP3Controller _mp3Controller;
+        private readonly CylindersController _cylindersController;
+
+        // Maple constructs this handler itself (outside the DI container), so resolve
+        // dependencies from the global registry once here rather than per request.
+        // Safe because MapleService only starts after MeadowApp.Initialize() has
+        // registered these controllers.
+        public ControllerRequestHandler()
+        {
+            _mp3Controller = Resolver.Services.Get<MP3Controller>();
+            _cylindersController = Resolver.Services.Get<CylindersController>();
+        }
 
         public override bool IsReusable => true;
 
         [HttpPost("/sound")]
-        public async Task<IActionResult> SoundAsync()
+        public IActionResult Sound()
         {
             try
             {
                 var fileNumber = Convert.ToByte(QueryString["filenumber"]);
-                var fileDuration = Convert.ToInt32(QueryString["fileduration"]);
-                await Resolver.Services.Get<MP3Controller>().PlayFile(fileNumber, fileDuration);
+                _mp3Controller.PlayFile(fileNumber);
             }
             catch (Exception ex)
             {
@@ -32,7 +41,7 @@ namespace meadow_monsterbox
         }
 
         [HttpPost("/shake")]
-        public async Task<IActionResult> ShakeAsync()
+        public IActionResult Shake()
         {
             var config = new ShakeConfiguration();
 
@@ -56,7 +65,7 @@ namespace meadow_monsterbox
                 config.EndDelay = endDelay;
             }
 
-            await Resolver.Services.Get<CylindersController>().ShakeAsync(config);
+            _cylindersController.TryShake(config);
             return new OkResult();
         }
     }

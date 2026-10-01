@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 using Meadow;
 using Meadow.Devices;
 using Meadow.Foundation.Audio.Mp3;
@@ -41,14 +39,17 @@ namespace meadow_monsterbox.Controllers
             Logger.Info($"{GetType().Name} is initialized.");
         }
 
-        public async Task PlayFile(byte fileNumber, int lengthOfFileInSeconds)
+        // Fire-and-forget: sends the play command and returns immediately. If a file is
+        // already playing, the module switches to the new one (cutting the current one
+        // off). Playback isn't polled for completion, so nothing else ever talks to the
+        // UART in the background; Maple's RequestProcessMode.Serial guarantees two
+        // Play() writes never overlap.
+        public void PlayFile(byte fileNumber)
         {
-            Logger.Info($"Playing file: {fileNumber} for {lengthOfFileInSeconds} seconds.");
+            Logger.Info($"Playing file: {fileNumber}.");
 
             byte byteStepUp = (byte)(fileNumber + 1);
             _mp3Player.Play(byteStepUp);
-
-            await Task.Delay((lengthOfFileInSeconds + 1) * 1000);
         }
     }
 }

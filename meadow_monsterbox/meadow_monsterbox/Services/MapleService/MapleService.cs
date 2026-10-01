@@ -27,7 +27,7 @@ namespace meadow_monsterbox.Services.MapleService
                 advertise: true,
                 processMode: RequestProcessMode.Serial)
             {
-                AdvertiseIntervalMs = 1500, // every 1.5 seconds
+                AdvertiseIntervalMs = 5000, // every 5 seconds
                 DeviceName = device.Information.DeviceName
             };
 

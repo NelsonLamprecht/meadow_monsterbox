@@ -1,7 +1,7 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
-using Meadow;
 using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
@@ -17,7 +17,43 @@ namespace meadow_monsterbox.Controllers
             _random = new Random();
         }
 
-        public async Task ShakeAsync(ShakeConfiguration config)
+        // 0 = idle, 1 = shaking; set on the request thread and cleared from the
+        // background shake continuation, so access it via Interlocked
+        private int _isShaking;
+
+        // Starts a shake and returns immediately so the HTTP request isn't held open
+        // for the whole sequence (and a /sound request right after isn't queued behind
+        // it). Returns false (and ignores the request) if a shake is already running.
+        public bool TryShake(ShakeConfiguration config)
+        {
+            if (Interlocked.CompareExchange(ref _isShaking, 1, 0) != 0)
+            {
+                Logger.Warn("Already shaking; ignoring request.");
+                return false;
+            }
+
+            _ = ShakeInBackground(config);
+            return true;
+        }
+
+        private async Task ShakeInBackground(ShakeConfiguration config)
+        {
+            try
+            {
+                await ShakeAsync(config);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Shake failed: {ex.Message}");
+                Stop();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isShaking, 0);
+            }
+        }
+
+        private async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
             var iterations = config.GetIterations();
