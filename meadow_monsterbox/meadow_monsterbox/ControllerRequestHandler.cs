@@ -31,7 +31,7 @@ namespace meadow_monsterbox
             try
             {
                 var fileNumber = Convert.ToByte(QueryString["filenumber"]);
-                _mp3Controller.PlayFile(fileNumber);
+                _mp3Controller.QueueFile(fileNumber);
             }
             catch (Exception ex)
             {
