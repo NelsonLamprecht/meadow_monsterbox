@@ -17,14 +17,15 @@ namespace meadow_monsterbox.Controllers
             _random = new Random();
         }
 
-        // 0 = idle, 1 = shaking; set on the request thread and cleared from the
-        // background shake continuation, so access it via Interlocked
+        // 0 = idle, 1 = shaking; Maple runs requests in parallel, so two /shake
+        // requests can race for this — access it via Interlocked
         private int _isShaking;
 
-        // Starts a shake and returns immediately so the HTTP request isn't held open
-        // for the whole sequence (and a /sound request right after isn't queued behind
-        // it). Returns false (and ignores the request) if a shake is already running.
-        public bool TryShake(ShakeConfiguration config)
+        // Runs the whole shake and completes when it's done, so the /shake response
+        // tells the caller the shake has finished. Returns false immediately (without
+        // shaking) if another shake is already running. Exceptions propagate to the
+        // caller after the relays are switched off.
+        public async Task<bool> TryShakeAsync(ShakeConfiguration config)
         {
             if (Interlocked.CompareExchange(ref _isShaking, 1, 0) != 0)
             {
@@ -32,20 +33,16 @@ namespace meadow_monsterbox.Controllers
                 return false;
             }
 
-            _ = ShakeInBackground(config);
-            return true;
-        }
-
-        private async Task ShakeInBackground(ShakeConfiguration config)
-        {
             try
             {
                 await ShakeAsync(config);
+                return true;
             }
-            catch (Exception ex)
+            catch
             {
-                Logger.Error($"Shake failed: {ex.Message}");
+                // never leave a cylinder stuck on
                 Stop();
+                throw;
             }
             finally
             {

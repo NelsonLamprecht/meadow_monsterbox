@@ -9,6 +9,7 @@ POST http://{{host}}/sound?filenumber=1
 POST http://{{host}}/sound?filenumber=3
 
 ### Shake with default configuration (25-50 iterations, 50-75ms delay)
+### Responds when the shake finishes (200), or immediately with 409 if a shake is already running
 POST http://{{host}}/shake
 
 ### Shake with a short, gentle run

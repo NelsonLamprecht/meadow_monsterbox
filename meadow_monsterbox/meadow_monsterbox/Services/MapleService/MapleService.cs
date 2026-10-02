@@ -25,7 +25,9 @@ namespace meadow_monsterbox.Services.MapleService
                 networkAdapter.IpAddress,
                 port: 5417,
                 advertise: true,
-                processMode: RequestProcessMode.Serial)
+                // Parallel so a /sound isn't queued behind a /shake that holds its
+                // request open until the shake finishes; see AGENTS.md for why this is safe
+                processMode: RequestProcessMode.Parallel)
             {
                 AdvertiseIntervalMs = 5000, // every 5 seconds
                 DeviceName = device.Information.DeviceName
