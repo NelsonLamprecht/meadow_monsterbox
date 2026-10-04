@@ -1,6 +1,4 @@
-﻿using System;
-
-using Meadow;
+﻿using Meadow;
 using System.Threading;
 
 namespace meadow_monsterbox

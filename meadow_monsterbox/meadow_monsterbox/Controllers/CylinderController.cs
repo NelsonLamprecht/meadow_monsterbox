@@ -1,25 +1,62 @@
-﻿using System;
+using System;
+using System.Threading;
 using System.Threading.Tasks;
+
+using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    public class CylindersController
+    internal class CylindersController : BaseController
     {
+        private readonly RelayController relayController;
         private readonly Random _random;
 
-        public CylindersController()
+        public CylindersController(Logger logger, RelayController relayController) : base(logger)
         {
+            this.relayController = relayController;
             _random = new Random();
         }
 
-        public async Task ShakeAsync(ShakeConfiguration config)
+        // 0 = idle, 1 = shaking; Maple runs requests in parallel, so two /shake
+        // requests can race for this — access it via Interlocked
+        private int _isShaking;
+
+        // Runs the whole shake and completes when it's done, so the /shake response
+        // tells the caller the shake has finished. Returns false immediately (without
+        // shaking) if another shake is already running. Exceptions propagate to the
+        // caller after the relays are switched off.
+        public async Task<bool> TryShakeAsync(ShakeConfiguration config)
+        {
+            if (Interlocked.CompareExchange(ref _isShaking, 1, 0) != 0)
+            {
+                Logger.Warn("Already shaking; ignoring request.");
+                return false;
+            }
+
+            try
+            {
+                await ShakeAsync(config);
+                return true;
+            }
+            catch
+            {
+                // never leave a cylinder stuck on
+                Stop();
+                throw;
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isShaking, 0);
+            }
+        }
+
+        private async Task ShakeAsync(ShakeConfiguration config)
         {
             Stop();
-            Console.WriteLine("Shake.");
-            Console.WriteLine(Environment.NewLine);
-            Console.WriteLine($"Iterations: {config.GetIterations()}");
+            var iterations = config.GetIterations();
+            Logger.Info($"Shake. Iterations: {iterations}");
 
-            for (int i = 0; i <= config.GetIterations() ; i++)
+            for (int i = 0; i <= iterations; i++)
             {
                 await ActionAsync(config);
             }
@@ -38,35 +75,35 @@ namespace meadow_monsterbox.Controllers
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOffLeft();
+                    relayController.TurnOffLeft();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOffRight();
+                    relayController.TurnOffRight();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
             else if (randomNumber == 1)
             {
                 if (randomLeftOrRight == 0)
                 {
-                    RelayController.Current.TurnOnLeft();
+                    relayController.TurnOnLeft();
                     await Task.Delay(config.GetDelay());
                 }
                 else if (randomLeftOrRight == 1)
                 {
-                    RelayController.Current.TurnOnRight();
+                    relayController.TurnOnRight();
                     await Task.Delay(config.GetDelay());
-                }                
+                }
             }
         }
 
         private void Stop()
         {
-            Console.WriteLine("Stop.");
-            RelayController.Current.TurnOffLeft();
-            RelayController.Current.TurnOffRight();
+            Logger.Info("Stop.");
+            relayController.TurnOffLeft();
+            relayController.TurnOffRight();
         }
-    }   
+    }
 }

@@ -1,46 +1,50 @@
-﻿using System;
+using System;
 
+using Meadow;
 using Meadow.Foundation.Relays;
 using Meadow.Hardware;
+using Meadow.Logging;
+using Meadow.Peripherals.Relays;
 
 namespace meadow_monsterbox.Controllers
 {
     /// <summary>
     /// The commands all inverted since the pneumatics are keeping the values closed
     /// </summary>
-    internal class RelayController: InitalizedBaseController
+    internal class RelayController : BaseController, IDisposable
     {
+        private readonly IMeadowDevice device;
+
+        private IDigitalOutputPort _leftRelayPort;
+        private IDigitalOutputPort _rightRelayPort;
         private Relay relayLeft;
         private Relay relayRight;
         private bool _debug = false;
+        private bool initialized = false;
 
-        public static RelayController Current
+        public RelayController(Logger logger, IMeadowDevice device) : base(logger)
         {
-            get;
-            private set;
+            this.device = device;
         }
 
-        static RelayController()
-        {
-            Current = new RelayController();
-        }
-
-        private RelayController() {  }
-
-        public override void Initialize()
+        public void Initialize(IPin leftPin, IPin rightPin)
         {
             if (initialized)
             {
                 return;
             }
-            // true so port is closed as quickly as possible when board boots up
-            relayLeft = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D05,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
-            relayRight = new Relay(MeadowApp.Device.CreateDigitalOutputPort(MeadowApp.Device.Pins.D06,true,OutputType.OpenDrain),Meadow.Peripherals.Relays.RelayType.NormallyOpen);
+            // true so port is closed as quickly as possible when board boots up.
+            // PushPull actively drives both levels, so the GPIO never depends on (or
+            // gets exposed to) the relay board's onboard 5V pull-up like OpenDrain would.
+            _leftRelayPort = device.CreateDigitalOutputPort(leftPin, true, OutputType.PushPull);
+            _rightRelayPort = device.CreateDigitalOutputPort(rightPin, true, OutputType.PushPull);
+            relayLeft = new Relay(_leftRelayPort, RelayType.NormallyOpen);
+            relayRight = new Relay(_rightRelayPort, RelayType.NormallyOpen);
             TurnOffLeft();
             TurnOffRight();
             initialized = true;
 
-            base.Initialize();
+            Logger.Info($"{GetType().Name} is initialized.");
         }
 
         public void DebugOff()
@@ -55,38 +59,44 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOffLeft()
         {
-            relayLeft.IsOn = !false;
+            relayLeft.State = RelayState.Open;
             if (_debug)
             {
-                Console.WriteLine("Relay Left Is Off.");
+                Logger.Info("Relay Left Is Off.");
             }
         }
 
         public void TurnOffRight()
         {
-            relayRight.IsOn = !false;
+            relayRight.State = RelayState.Open;
             if (_debug)
             {
-                Console.WriteLine("Relay Right Is Off.");
+                Logger.Info("Relay Right Is Off.");
             }
         }
 
         public void TurnOnLeft()
         {
-            relayLeft.IsOn = !true;
+            relayLeft.State = RelayState.Closed;
             if(_debug)
             {
-                Console.WriteLine("Relay Left Is On.");
+                Logger.Info("Relay Left Is On.");
             }
         }
 
         public void TurnOnRight()
         {
-            relayRight.IsOn = !true;
+            relayRight.State = RelayState.Closed;
             if (_debug)
             {
-                Console.WriteLine("Relay Right Is On.");
+                Logger.Info("Relay Right Is On.");
             }
+        }
+
+        public void Dispose()
+        {
+            _leftRelayPort?.Dispose();
+            _rightRelayPort?.Dispose();
         }
     }
 }

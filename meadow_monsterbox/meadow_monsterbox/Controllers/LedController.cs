@@ -1,50 +1,54 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Threading;
 
+using Meadow;
+using Meadow.Devices;
 using Meadow.Foundation.Leds;
-using Meadow.Foundation;
+using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    internal class LedController: InitalizedBaseController
+    internal class LedController : BaseController, IDisposable
     {
+        private readonly IMeadowDevice device;
+
         RgbPwmLed onBoardRGBLed;
 
         Task animationTask = null;
         CancellationTokenSource cancellationTokenSource = null;
 
-        public static LedController Current { get; private set; }
+        bool initialized = false;
 
-        private LedController() { }
-
-        static LedController()
+        public LedController(Logger logger, IMeadowDevice device) : base(logger)
         {
-            Current = new LedController();
+            this.device = device;
         }
 
-        public override void Initialize()
+        public void Initialize()
         {
             if (initialized)
             {
                 return;
             }
 
-            onBoardRGBLed = new RgbPwmLed(
-                device: MeadowApp.Device,
-                redPwmPin: MeadowApp.Device.Pins.OnboardLedRed,
-                greenPwmPin: MeadowApp.Device.Pins.OnboardLedGreen,
-                bluePwmPin: MeadowApp.Device.Pins.OnboardLedBlue);
-            onBoardRGBLed.SetColor(Color.Red);
+            if (device is F7FeatherV1 f7Device)
+            {
+                onBoardRGBLed = new RgbPwmLed(
+                    redPwmPin: f7Device.Pins.OnboardLedRed,
+                    greenPwmPin: f7Device.Pins.OnboardLedGreen,
+                    bluePwmPin: f7Device.Pins.OnboardLedBlue);
+                onBoardRGBLed.SetColor(Color.Red);
+            }
 
             initialized = true;
 
-            base.Initialize();
+            Logger.Info($"{GetType().Name} is initialized.");
         }
 
         void Stop()
         {
-            onBoardRGBLed.Stop();
+            onBoardRGBLed.StopAnimation();
             cancellationTokenSource?.Cancel();
         }
 
@@ -81,7 +85,7 @@ namespace meadow_monsterbox.Controllers
 
         public void StartRunningColors()
         {
-            onBoardRGBLed.Stop();
+            onBoardRGBLed.StopAnimation();
 
             animationTask = new Task(async () =>
             {
@@ -108,7 +112,13 @@ namespace meadow_monsterbox.Controllers
         protected Color GetRandomColor()
         {
             var random = new Random();
-            return Color.FromHsba(random.NextDouble(), 1, 1);
+            return Color.FromHsba((float)random.NextDouble(), 1, 1);
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource?.Cancel();
+            onBoardRGBLed?.Dispose();
         }
     }
 }

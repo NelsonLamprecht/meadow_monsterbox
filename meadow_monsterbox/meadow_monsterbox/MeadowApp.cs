@@ -1,115 +1,147 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using System.Text.Json;
+using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 using Meadow;
-using Meadow.Devices;
-using Meadow.Foundation;
-using Meadow.Foundation.Web.Maple.Server;
-using Meadow.Gateway.WiFi;
-using Meadow.Gateways;
+using Meadow.Hardware;
+
 using meadow_monsterbox.Controllers;
+using meadow_monsterbox.Services.DiagnosticsService;
+using meadow_monsterbox.Services.MapleService;
+using meadow_monsterbox.Services.NetworkService;
+using meadow_monsterbox.Services.Watchdog;
 
 namespace meadow_monsterbox
 {
-    public class MeadowApp : App<F7FeatherV1, MeadowApp>
+    public class MeadowApp : MeadowBase
     {
-        private const string appConfigFileName = "app.config.json";
-        private MapleServer _mapleServer;
-        private CylindersController _cylinders;
+        private bool _servicesStarted = false;
+        private readonly Stopwatch _bootStopwatch = Stopwatch.StartNew();
 
-        public CylindersController Cylinders { get => _cylinders; private set => _cylinders = value; }
+        // used if app.config.yaml is missing or doesn't have an App.DeviceName entry
+        private const string DefaultDeviceName = "Monsterbox-v1";
 
-        public MeadowApp()
+        public override async Task Initialize()
         {
-            try
+            Logger.Info("=== Initializing hardware... ===");
+
+            if (Settings.TryGetValue("App.DeviceName", out var configuredDeviceName) && !string.IsNullOrWhiteSpace(configuredDeviceName))
             {
-                Device.Information.DeviceName = "MeadowF7v1-1";
-                Initialize().Wait();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        private async Task Initialize()
-        {
-            Console.WriteLine("Initializing hardware...");
-            LedController.Current.Initialize();
-            RelayController.Current.Initialize();
-            MP3Controller.Current.Initialize();
-
-            AppConfigRoot appConfigRoot = await GetAppConfig();
-
-            if (appConfigRoot != null
-                &&
-                appConfigRoot.Network != null
-                &&
-                appConfigRoot.Network.Wifi != null
-                &&
-                appConfigRoot.Network.Wifi.SSID != null
-                &&
-                appConfigRoot.Network.Wifi.Password != null)
-            {
-                Device.SetAntenna(AntennaType.External);
-                ConnectionResult connectionResult = await Device.WiFiAdapter.Connect(appConfigRoot.Network.Wifi.SSID, appConfigRoot.Network.Wifi.Password);
-                if (connectionResult.ConnectionStatus != ConnectionStatus.Success)
-                {
-                    throw new Exception($"Cannot connect to network: {connectionResult.ConnectionStatus}");
-                }
-                _mapleServer = new MapleServer(Device.WiFiAdapter.IpAddress, 5417, true, RequestProcessMode.Serial, null)
-                {
-                    AdvertiseIntervalMs = 1500, // every 1.5 seconds
-                    DeviceName = Device.Information.DeviceName
-                };
-                _mapleServer.Start();
-
-                Cylinders = new CylindersController();
-
-                LedController.Current.SetColor(Color.Green);
+                Device.Information.DeviceName = configuredDeviceName;
             }
             else
             {
-                throw new Exception("Unable to get network configuration from file.");
+                Logger.Warn($"App.DeviceName not found in app.config.yaml; falling back to '{DefaultDeviceName}'.");
+                Device.Information.DeviceName = DefaultDeviceName;
             }
+            Logger.Info($"Device name: {Device.Information.DeviceName}");
+
+            var diagnosticsService = Services.Create<DiagnosticsService>();
+            diagnosticsService.OutputMeadowOSInfo();
+            diagnosticsService.OutputDeviceInfo();
+            diagnosticsService.OutputNtpInfo();
+
+            var wifiAdapter = Device.NetworkAdapters.Primary<IWiFiNetworkAdapter>();
+
+            Logger.Info(
+                $"WiFi config from wifi.config.yaml -> DefaultSsid: '{wifiAdapter.DefaultSsid}', " +
+                $"AutoConnect: {wifiAdapter.AutoConnect}, AutoReconnect: {wifiAdapter.AutoReconnect}");
+
+            // this device always runs on the external antenna; persisted so it's already
+            // in effect before AutomaticallyStartNetwork connects on every boot after the first
+            Logger.Info("Setting antenna to External...");
+            wifiAdapter.SetAntenna(AntennaType.External, true);
+            Services.Add(wifiAdapter);
+
+            Logger.Info("Initializing LedController...");
+            var ledController = Services.Create<LedController>();
+            ledController.Initialize();
+
+            Logger.Info("Initializing RelayController...");
+            var relayController = Services.Create<RelayController>();
+            relayController.Initialize(Device.Pins.D05, Device.Pins.D06);
+
+            Logger.Info("Initializing MP3Controller...");
+            var mp3Controller = Services.Create<MP3Controller>();
+            mp3Controller.Initialize();
+
+            Logger.Info("Creating remaining services...");
+            Services.Create<WatchdogService, IWatchdogService>();
+            Services.Create<NetworkService>();
+            Services.Create<CylindersController>();
+            Services.Create<MapleService>();
+
+            wifiAdapter.NetworkConnecting += (sender) =>
+                Logger.Info($"WiFi connecting @ {_bootStopwatch.Elapsed}...");
+            wifiAdapter.NetworkConnected += OnWifiConnected;
+            wifiAdapter.NetworkConnectFailed += (sender) =>
+                Logger.Warn($"WiFi connect failed @ {_bootStopwatch.Elapsed}.");
+            wifiAdapter.NetworkDisconnected += (sender, args) =>
+                Logger.Warn($"WiFi disconnected @ {_bootStopwatch.Elapsed}. Reason: {args.Reason}");
+            wifiAdapter.NetworkError += (sender, args) =>
+                Logger.Error($"WiFi network error @ {_bootStopwatch.Elapsed}. ErrorCode: {args.ErrorCode}");
+
+            Logger.Info("=== Hardware initialized. ===");
+
+            await base.Initialize();
         }
 
-        private async Task<AppConfigRoot> GetAppConfig()
+        public override Task Run()
         {
-            var appConfigFilePath = Path.Combine(MeadowOS.FileSystem.UserFileSystemRoot, appConfigFileName);
-            var appConfig = await GetFileContentsAsync<AppConfigRoot>(appConfigFilePath);
-            if (appConfig != default)
-            {
-                Console.WriteLine(Environment.NewLine);
-                Console.WriteLine("Network:");
-                Console.WriteLine($"\tSSID: {appConfig.Network.Wifi.SSID}");
-                Console.WriteLine($"\tPassword: {appConfig.Network.Wifi.Password}");
-            }
+            Logger.Info("Enabling watchdog...");
+            var watchdog = Services.Get<IWatchdogService>();
+            watchdog.Enable(15);
+            watchdog.Pet(10);
 
-            return appConfig;
+            // network connection is handled by Meadow OS via wifi.config.yaml and
+            // AutomaticallyStartNetwork in meadow.config.yaml; see OnWifiConnected
+            Logger.Info($"=== Running @ {_bootStopwatch.Elapsed}. Waiting for WiFi connection... ===");
+            return base.Run();
         }
 
-        private async Task<T> GetFileContentsAsync<T>(string path)
+        private void OnWifiConnected(INetworkAdapter sender, NetworkConnectionEventArgs args)
         {
-            Console.WriteLine($"\tFile: {Path.GetFullPath(path)} ");
-            try
+            Logger.Info($"WiFi connected @ {_bootStopwatch.Elapsed}. IP: {args.IpAddress}, Gateway: {args.Gateway}, Subnet: {args.Subnet}");
+
+            var networkService = Services.Get<NetworkService>();
+            networkService.NetworkIsConnected(sender);
+
+            // AutomaticallyReconnect can raise this again after a drop; only start the Maple server once
+            if (_servicesStarted)
             {
-                using (var fileStream = File.Open(path, FileMode.Open, FileAccess.Read))
-                using (var streamReader = new StreamReader(fileStream, Encoding.UTF8))
-                {
-                    var fileContents = await streamReader.ReadToEndAsync();
-                    var result = JsonSerializer.Deserialize<T>(fileContents);
-                    return result;
-                }
+                return;
             }
-            catch (Exception ex)
+            _servicesStarted = true;
+
+            Logger.Info("Starting MapleService...");
+            Services.Get<MapleService>().Run();
+
+            Services.Get<LedController>().SetColor(Color.Green);
+
+            Logger.Info($"=== Startup complete @ {_bootStopwatch.Elapsed}. ===");
+        }
+
+        public override Task OnError(Exception e)
+        {
+            Logger.Error($"Unhandled application error @ {_bootStopwatch.Elapsed}: {e}");
+            return base.OnError(e);
+        }
+
+        public override Task OnShutdown()
+        {
+            Logger.Info($"=== Shutting down @ {_bootStopwatch.Elapsed}... ===");
+
+            if (Services.ContainsRegisteredType<LedController>())
             {
-                Console.WriteLine(ex.Message);
+                Services.Get<LedController>().Dispose();
             }
-            return default;
+
+            if (Services.ContainsRegisteredType<RelayController>())
+            {
+                Services.Get<RelayController>().Dispose();
+            }
+
+            return base.OnShutdown();
         }
     }
 }
