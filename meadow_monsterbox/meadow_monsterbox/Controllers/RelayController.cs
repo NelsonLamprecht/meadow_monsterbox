@@ -19,7 +19,6 @@ namespace meadow_monsterbox.Controllers
         private IDigitalOutputPort _rightRelayPort;
         private Relay relayLeft;
         private Relay relayRight;
-        private bool _debug = false;
         private bool initialized = false;
 
         public RelayController(Logger logger, IMeadowDevice device) : base(logger)
@@ -34,10 +33,9 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
             // true so port is closed as quickly as possible when board boots up.
-            // PushPull actively drives both levels, so the GPIO never depends on (or
-            // gets exposed to) the relay board's onboard 5V pull-up like OpenDrain would.
-            _leftRelayPort = device.CreateDigitalOutputPort(leftPin, true, OutputType.PushPull);
-            _rightRelayPort = device.CreateDigitalOutputPort(rightPin, true, OutputType.PushPull);
+            //opendrain is what seems to work with a relay board
+            _leftRelayPort = device.CreateDigitalOutputPort(leftPin, true, OutputType.OpenDrain);
+            _rightRelayPort = device.CreateDigitalOutputPort(rightPin, true, OutputType.OpenDrain);
             relayLeft = new Relay(_leftRelayPort, RelayType.NormallyOpen);
             relayRight = new Relay(_rightRelayPort, RelayType.NormallyOpen);
             TurnOffLeft();
@@ -47,54 +45,37 @@ namespace meadow_monsterbox.Controllers
             Logger.Info($"{GetType().Name} is initialized.");
         }
 
-        public void DebugOff()
-        {
-            _debug = false;
-        }
-
-        public void DebugOn()
-        {
-            _debug = true;
-        }
-
         public void TurnOffLeft()
         {
             relayLeft.State = RelayState.Open;
-            if (_debug)
-            {
-                Logger.Info("Relay Left Is Off.");
-            }
         }
 
         public void TurnOffRight()
         {
             relayRight.State = RelayState.Open;
-            if (_debug)
-            {
-                Logger.Info("Relay Right Is Off.");
-            }
         }
 
         public void TurnOnLeft()
         {
             relayLeft.State = RelayState.Closed;
-            if(_debug)
-            {
-                Logger.Info("Relay Left Is On.");
-            }
         }
 
         public void TurnOnRight()
         {
             relayRight.State = RelayState.Closed;
-            if (_debug)
-            {
-                Logger.Info("Relay Right Is On.");
-            }
         }
 
         public void Dispose()
         {
+            // leave the cylinders de-energized before letting go of the pins
+            if (initialized)
+            {
+                TurnOffLeft();
+                TurnOffRight();
+            }
+
+            (relayLeft as IDisposable)?.Dispose();
+            (relayRight as IDisposable)?.Dispose();
             _leftRelayPort?.Dispose();
             _rightRelayPort?.Dispose();
         }

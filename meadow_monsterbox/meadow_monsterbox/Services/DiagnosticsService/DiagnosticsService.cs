@@ -32,7 +32,6 @@ namespace meadow_monsterbox.Services.DiagnosticsService
             Logger.Info($"Processor ID: {device.Information.UniqueID}");
             Logger.Info($"Model: {device.Information.Model}");
             Logger.Info($"Processor type: {device.Information.ProcessorType}");
-            Logger.Info($"Product: {device.Information.Model}");
             Logger.Info($"Coprocessor type: {device.Information.CoprocessorType}");
             Logger.Info($"Coprocessor firmware version: {device.Information.CoprocessorOSVersion}");
             Logger.Info(outputFooter);
@@ -40,7 +39,7 @@ namespace meadow_monsterbox.Services.DiagnosticsService
 
         public void OutputNtpInfo()
         {
-            Logger.Info($"=========================OutputMeadowOSInfo============================");
+            Logger.Info($"===========================OutputNtpInfo===============================");
             Logger.Info($"NTP Client Enabled: {device.PlatformOS.NtpClient.Enabled}");
             Logger.Info(outputFooter);
         }
@@ -56,6 +55,6 @@ namespace meadow_monsterbox.Services.DiagnosticsService
             Logger.Info($"MacAddress: {sender.MacAddress}");
             Logger.Info($"IpAddress: {sender.IpAddress}");
             Logger.Info(outputFooter);
-            }
         }
     }
+}

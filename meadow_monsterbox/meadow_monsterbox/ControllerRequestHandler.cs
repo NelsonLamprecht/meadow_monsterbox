@@ -14,6 +14,7 @@ namespace meadow_monsterbox
     {
         private readonly MP3Controller _mp3Controller;
         private readonly CylindersController _cylindersController;
+        private readonly LedController _ledController;
 
         // Maple constructs this handler itself (outside the DI container), so resolve
         // dependencies from the global registry here. Safe because MapleService only
@@ -22,6 +23,7 @@ namespace meadow_monsterbox
         {
             _mp3Controller = Resolver.Services.Get<MP3Controller>();
             _cylindersController = Resolver.Services.Get<CylindersController>();
+            _ledController = Resolver.Services.Get<LedController>();
         }
 
         // Maple runs requests in parallel, and per-request state (QueryString,
@@ -33,15 +35,24 @@ namespace meadow_monsterbox
         [HttpPost("/sound")]
         public IActionResult Sound()
         {
+            if (!byte.TryParse(QueryString["filenumber"], out var fileNumber) || fileNumber > MP3Controller.MaxFileNumber)
+            {
+                Resolver.Log.Warn($"Sound request missing or invalid 'filenumber' (0-{MP3Controller.MaxFileNumber}).");
+                return new StatusCodeResult(HttpStatusCode.BadRequest);
+            }
+
             try
             {
-                var fileNumber = Convert.ToByte(QueryString["filenumber"]);
                 _mp3Controller.QueueFile(fileNumber);
             }
             catch (Exception ex)
             {
-                Resolver.Log.Error(ex.Message);
+                Resolver.Log.Error($"Sound failed: {ex.Message}");
+                return new ServerErrorResult();
             }
+
+            // the command was accepted: pulse so it's visible the board got it
+            _ledController.SignalActivity();
             return new OkResult();
         }
 
@@ -72,6 +83,15 @@ namespace meadow_monsterbox
                 config.EndDelay = endDelay;
             }
 
+            if (!config.TryValidate(out var validationError))
+            {
+                Resolver.Log.Warn($"Shake rejected: {validationError}");
+                return new StatusCodeResult(HttpStatusCode.BadRequest);
+            }
+
+            // pulse for the whole shake and return to ready when it finishes, so the LED
+            // shows the board received the command and when it can take another
+            _ledController.BeginActivity();
             try
             {
                 if (!await _cylindersController.TryShakeAsync(config))
@@ -83,6 +103,10 @@ namespace meadow_monsterbox
             {
                 Resolver.Log.Error($"Shake failed: {ex.Message}");
                 return new ServerErrorResult();
+            }
+            finally
+            {
+                _ledController.EndActivity();
             }
 
             return new OkResult();

@@ -6,8 +6,15 @@ using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    internal class CylindersController : BaseController
+    internal class CylindersController : BaseController, IDisposable
     {
+        // cancelled on Dispose() so an in-flight shake stops instead of driving
+        // relays that are about to be released
+        private readonly CancellationTokenSource _shutdown = new CancellationTokenSource();
+
+        // how long Dispose() waits for a cancelled shake to finish switching the relays off
+        private const int ShutdownWaitMs = 500;
+
         private readonly RelayController relayController;
         private readonly Random _random;
 
@@ -27,6 +34,11 @@ namespace meadow_monsterbox.Controllers
         // caller after the relays are switched off.
         public async Task<bool> TryShakeAsync(ShakeConfiguration config)
         {
+            if (_shutdown.IsCancellationRequested)
+            {
+                throw new ObjectDisposedException(nameof(CylindersController));
+            }
+
             if (Interlocked.CompareExchange(ref _isShaking, 1, 0) != 0)
             {
                 Logger.Warn("Already shaking; ignoring request.");
@@ -56,54 +68,66 @@ namespace meadow_monsterbox.Controllers
             var iterations = config.GetIterations();
             Logger.Info($"Shake. Iterations: {iterations}");
 
-            for (int i = 0; i <= iterations; i++)
+            for (int i = 0; i < iterations; i++)
             {
                 await ActionAsync(config);
             }
             Stop();
+            Logger.Info("Shake finished.");
         }
 
         private async Task ActionAsync(ShakeConfiguration config)
         {
             // either turn it on or turn it off
-            var randomNumber = _random.Next(0, 2);
+            var turnOn = _random.Next(0, 2) == 1;
 
             // left or right
-            var randomLeftOrRight = _random.Next(0, 2);
+            var left = _random.Next(0, 2) == 0;
 
-            if (randomNumber == 0)
+            if (left)
             {
-                if (randomLeftOrRight == 0)
-                {
-                    relayController.TurnOffLeft();
-                    await Task.Delay(config.GetDelay());
-                }
-                else if (randomLeftOrRight == 1)
-                {
-                    relayController.TurnOffRight();
-                    await Task.Delay(config.GetDelay());
-                }
-            }
-            else if (randomNumber == 1)
-            {
-                if (randomLeftOrRight == 0)
+                if (turnOn)
                 {
                     relayController.TurnOnLeft();
-                    await Task.Delay(config.GetDelay());
                 }
-                else if (randomLeftOrRight == 1)
+                else
                 {
-                    relayController.TurnOnRight();
-                    await Task.Delay(config.GetDelay());
+                    relayController.TurnOffLeft();
                 }
             }
+            else
+            {
+                if (turnOn)
+                {
+                    relayController.TurnOnRight();
+                }
+                else
+                {
+                    relayController.TurnOffRight();
+                }
+            }
+
+            await Task.Delay(config.GetDelay(), _shutdown.Token);
         }
 
         private void Stop()
         {
-            Logger.Info("Stop.");
             relayController.TurnOffLeft();
             relayController.TurnOffRight();
+        }
+
+        // Cancels any running shake and waits briefly for it to switch the relays off,
+        // so the caller can safely dispose RelayController right after.
+        public void Dispose()
+        {
+            _shutdown.Cancel();
+
+            var waited = 0;
+            while (Volatile.Read(ref _isShaking) != 0 && waited < ShutdownWaitMs)
+            {
+                Thread.Sleep(10);
+                waited += 10;
+            }
         }
     }
 }
