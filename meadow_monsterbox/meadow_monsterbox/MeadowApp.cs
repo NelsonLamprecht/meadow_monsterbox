@@ -99,24 +99,40 @@ namespace meadow_monsterbox
             return base.Run();
         }
 
-        private void OnWifiConnected(INetworkAdapter sender, NetworkConnectionEventArgs args)
+        // async void is deliberate: this is an event handler, and awaiting MapleService.Run()
+        // lets a startup failure be caught and logged instead of vanishing in an unobserved task
+        private async void OnWifiConnected(INetworkAdapter sender, NetworkConnectionEventArgs args)
         {
             Logger.Info($"WiFi connected @ {_bootStopwatch.Elapsed}. IP: {args.IpAddress}, Gateway: {args.Gateway}, Subnet: {args.Subnet}");
 
             var networkService = Services.Get<NetworkService>();
             networkService.NetworkIsConnected(sender);
 
-            // AutomaticallyReconnect can raise this again after a drop; only start the Maple server once
-            if (_servicesStarted)
+            // AutomaticallyReconnect can raise this again after a drop. The Maple server is
+            // bound to a specific IP, so leave it alone if the address is unchanged and
+            // rebuild it if DHCP handed out a new one.
+            var mapleService = Services.Get<MapleService>();
+            if (_servicesStarted && args.IpAddress.Equals(mapleService.BoundAddress))
             {
+                return;
+            }
+
+            try
+            {
+                Logger.Info(_servicesStarted
+                    ? $"IP changed to {args.IpAddress}; restarting MapleService..."
+                    : "Starting MapleService...");
+                await mapleService.Run();
+            }
+            catch (Exception ex)
+            {
+                // the next NetworkConnected event retries
+                Logger.Error($"MapleService failed to start: {ex}");
                 return;
             }
             _servicesStarted = true;
 
-            Logger.Info("Starting MapleService...");
-            Services.Get<MapleService>().Run();
-
-            Services.Get<LedController>().SetColor(Color.Green);
+            Services.Get<LedController>().SetColor(LedController.ReadyColor);
 
             Logger.Info($"=== Startup complete @ {_bootStopwatch.Elapsed}. ===");
         }
@@ -134,6 +150,17 @@ namespace meadow_monsterbox
             if (Services.ContainsRegisteredType<LedController>())
             {
                 Services.Get<LedController>().Dispose();
+            }
+
+            if (Services.ContainsRegisteredType<MP3Controller>())
+            {
+                Services.Get<MP3Controller>().Dispose();
+            }
+
+            // before RelayController, so an in-flight shake stops before its relays go away
+            if (Services.ContainsRegisteredType<CylindersController>())
+            {
+                Services.Get<CylindersController>().Dispose();
             }
 
             if (Services.ContainsRegisteredType<RelayController>())

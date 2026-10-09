@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Threading;
 
@@ -46,20 +47,48 @@ namespace meadow_monsterbox.Controllers
             Logger.Info($"{GetType().Name} is initialized.");
         }
 
+        // onBoardRGBLed stays null if the device isn't an F7FeatherV1, so every
+        // public method is a no-op in that case rather than a NullReferenceException
         void Stop()
         {
-            onBoardRGBLed.StopAnimation();
             cancellationTokenSource?.Cancel();
+
+            // StopAnimation() only completes once the animation thread has exited, so wait
+            // for it: otherwise a final brightness write from that thread can land after the
+            // caller's next SetColor. Meadow has no synchronization context and the animation
+            // runs on its own thread, so blocking here can't deadlock (it takes <= ~60ms).
+            try
+            {
+                onBoardRGBLed?.StopAnimation().GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                // the animation was cancelled before it began; nothing left to stop
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn($"Stopping LED animation failed: {ex.Message}");
+            }
         }
 
         public void SetColor(Color color)
         {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
             Stop();
             onBoardRGBLed.SetColor(color);
         }
 
         public void TurnOn()
         {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
             Stop();
             onBoardRGBLed.SetColor(GetRandomColor());
             onBoardRGBLed.IsOn = true;
@@ -67,52 +96,163 @@ namespace meadow_monsterbox.Controllers
 
         public void TurnOff()
         {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
             Stop();
             onBoardRGBLed.IsOn = false;
         }
 
         public void StartBlink()
         {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
             Stop();
             onBoardRGBLed.StartBlink(GetRandomColor());
         }
 
         public void StartPulse()
         {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
             Stop();
             onBoardRGBLed.StartPulse(GetRandomColor());
         }
 
+        // Pulses while at least one command is being handled, then returns to ReadyColor.
+        // Counted, because Maple handles requests in parallel: the LED only goes back to
+        // ready once the last overlapping request has finished.
+        public void BeginActivity()
+        {
+            if (onBoardRGBLed == null)
+            {
+                return;
+            }
+
+            lock (_activityLock)
+            {
+                _activityVersion++;
+                _activeRequests++;
+
+                if (!_pulsing)
+                {
+                    _pulsing = true;
+                    _pulseClock.Restart();
+                    StartPulse();
+                }
+            }
+        }
+
+        public void EndActivity()
+        {
+            lock (_activityLock)
+            {
+                if (_activeRequests == 0)
+                {
+                    return;
+                }
+
+                if (--_activeRequests > 0)
+                {
+                    return;
+                }
+
+                var remaining = MinActivityPulse - _pulseClock.Elapsed;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    ReturnToReady();
+                    return;
+                }
+
+                // finished faster than the pulse is noticeable (e.g. /sound only queues
+                // the file); hold the pulse without delaying the HTTP response. A newer
+                // BeginActivity bumps the version, which cancels this return-to-ready.
+                var version = _activityVersion;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(remaining);
+                    lock (_activityLock)
+                    {
+                        if (_activeRequests == 0 && version == _activityVersion)
+                        {
+                            ReturnToReady();
+                        }
+                    }
+                });
+            }
+        }
+
+        // For commands that complete instantly: a pulse of MinActivityPulse, then ready.
+        public void SignalActivity()
+        {
+            BeginActivity();
+            EndActivity();
+        }
+
+        // call with _activityLock held
+        private void ReturnToReady()
+        {
+            _pulsing = false;
+            SetColor(ReadyColor);
+        }
+
+        // Color shown when the board is idle and ready to accept a command
+        public static readonly Color ReadyColor = Color.Green;
+
+        // shortest time the pulse stays visible
+        private static readonly TimeSpan MinActivityPulse = TimeSpan.FromSeconds(1);
+
+        private readonly object _activityLock = new object();
+        private readonly Stopwatch _pulseClock = new Stopwatch();
+        private int _activeRequests;
+        private int _activityVersion;
+        private bool _pulsing;
+
         public void StartRunningColors()
         {
-            onBoardRGBLed.StopAnimation();
-
-            animationTask = new Task(async () =>
+            if (onBoardRGBLed == null)
             {
-                cancellationTokenSource = new CancellationTokenSource();
-                await StartRunningColors(cancellationTokenSource.Token);
-            });
-            animationTask.Start();
+                return;
+            }
+
+            // cancels any previous animation; the new token exists before the task
+            // starts, so an immediate Stop() can't miss it
+            Stop();
+            cancellationTokenSource = new CancellationTokenSource();
+            var token = cancellationTokenSource.Token;
+            animationTask = Task.Run(() => StartRunningColors(token));
         }
 
         protected async Task StartRunningColors(CancellationToken cancellationToken)
         {
-            while (true)
+            try
             {
-                if (cancellationToken.IsCancellationRequested)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    break;
+                    onBoardRGBLed.SetColor(GetRandomColor());
+                    await Task.Delay(1000, cancellationToken);
                 }
-
-                onBoardRGBLed.SetColor(GetRandomColor());
-                await Task.Delay(1000);
+            }
+            catch (OperationCanceledException)
+            {
+                // Stop() was called; nothing to clean up
             }
         }
 
+        // shared so back-to-back calls don't get the same time-based seed (and color)
+        private static readonly Random _random = new Random();
+
         protected Color GetRandomColor()
         {
-            var random = new Random();
-            return Color.FromHsba((float)random.NextDouble(), 1, 1);
+            return Color.FromHsba((float)_random.NextDouble(), 1, 1);
         }
 
         public void Dispose()

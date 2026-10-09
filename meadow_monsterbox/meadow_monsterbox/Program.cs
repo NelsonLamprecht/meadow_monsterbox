@@ -9,7 +9,10 @@ namespace meadow_monsterbox
 
         public static void Main(string[] args)
         {
-            if (args.Length > 0 && args[0] == "--exitOnDebug") return;                       
+            if (args.Length > 0 && args[0] == "--exitOnDebug")
+            {
+                return;
+            }
 
             // instantiate and run new meadow app
             app = new MeadowApp();

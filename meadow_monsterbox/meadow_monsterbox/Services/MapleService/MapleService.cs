@@ -1,3 +1,5 @@
+using System;
+using System.Net;
 using System.Threading.Tasks;
 
 using Meadow;
@@ -19,10 +21,18 @@ namespace meadow_monsterbox.Services.MapleService
             this.networkAdapter = networkAdapter;
         }
 
+        // the address the running server is bound to, or null if it isn't running
+        public IPAddress BoundAddress { get; private set; }
+
+        // Starts the server on the adapter's current IP. Calling it again stops the
+        // existing server first, so it can be used to re-bind after the IP changes.
         public override Task Run()
         {
+            StopServer();
+
+            var address = networkAdapter.IpAddress;
             mapleServer = new MapleServer(
-                networkAdapter.IpAddress,
+                address,
                 port: 5417,
                 advertise: true,
                 // Parallel so a /sound isn't queued behind a /shake that holds its
@@ -34,7 +44,29 @@ namespace meadow_monsterbox.Services.MapleService
             };
 
             mapleServer.Start();
+            BoundAddress = address;
             return base.Run();
+        }
+
+        private void StopServer()
+        {
+            if (mapleServer == null)
+            {
+                return;
+            }
+
+            try
+            {
+                mapleServer.Stop();
+            }
+            catch (Exception ex)
+            {
+                // the old address is gone anyway; keep going and bind the new one
+                Logger.Warn($"Stopping previous MapleServer failed: {ex.Message}");
+            }
+
+            mapleServer = null;
+            BoundAddress = null;
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,7 +10,7 @@ using Meadow.Logging;
 
 namespace meadow_monsterbox.Controllers
 {
-    internal class MP3Controller : BaseController
+    internal class MP3Controller : BaseController, IDisposable
     {
         // Yx5300 module is wired to the Feather's COM4 UART
         private const string SerialPortName = "COM4";
@@ -36,6 +37,9 @@ namespace meadow_monsterbox.Controllers
         // blocking the queue for the full MaxPlayDuration
         private const int MaxConsecutiveErrors = 3;
 
+        // files are sent to the module as fileNumber + 1 in a single byte, so 255 would wrap to 0
+        public const byte MaxFileNumber = 254;
+
         private readonly IMeadowDevice device;
 
         private Yx5300 _mp3Player;
@@ -48,6 +52,9 @@ namespace meadow_monsterbox.Controllers
 
         // released once per queued request to wake the playback worker
         private readonly SemaphoreSlim _wake = new SemaphoreSlim(0);
+
+        // cancelled on Dispose() to stop the playback worker
+        private readonly CancellationTokenSource _shutdown = new CancellationTokenSource();
 
         public MP3Controller(Logger logger, IMeadowDevice device) : base(logger)
         {
@@ -87,6 +94,12 @@ namespace meadow_monsterbox.Controllers
                 return;
             }
 
+            if (fileNumber > MaxFileNumber)
+            {
+                Logger.Warn($"File number {fileNumber} is above the maximum of {MaxFileNumber}; ignoring.");
+                return;
+            }
+
             lock (_queueLock)
             {
                 if (_pendingFile.HasValue)
@@ -101,11 +114,13 @@ namespace meadow_monsterbox.Controllers
 
         private async Task RunPlaybackWorker()
         {
-            while (true)
+            var token = _shutdown.Token;
+
+            while (!token.IsCancellationRequested)
             {
                 try
                 {
-                    await _wake.WaitAsync();
+                    await _wake.WaitAsync(token);
 
                     byte? next;
                     lock (_queueLock)
@@ -124,9 +139,13 @@ namespace meadow_monsterbox.Controllers
                     Logger.Info($"Playing file: {next.Value}.");
                     _mp3Player.Play((byte)(next.Value + 1));
 
-                    await WaitForTrackToEnd();
+                    await WaitForTrackToEnd(token);
 
                     Logger.Info($"Finished playing file: {next.Value}.");
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -136,25 +155,20 @@ namespace meadow_monsterbox.Controllers
             }
         }
 
-        private async Task WaitForTrackToEnd()
+        private async Task WaitForTrackToEnd(CancellationToken token)
         {
-            await Task.Delay(StartDelay);
+            await Task.Delay(StartDelay, token);
 
-            var elapsed = TimeSpan.Zero;
+            // wall-clock, so the time spent inside GetStatus() counts toward the cap
+            var stopwatch = Stopwatch.StartNew();
             var notPlayingReads = 0;
             var consecutiveErrors = 0;
 
-            while (elapsed < MaxPlayDuration)
+            while (stopwatch.Elapsed < MaxPlayDuration)
             {
                 try
                 {
-                    var statusTask = _mp3Player.GetStatus();
-                    if (await Task.WhenAny(statusTask, Task.Delay(StatusTimeout)) != statusTask)
-                    {
-                        throw new TimeoutException("GetStatus() timed out.");
-                    }
-
-                    var status = await statusTask;
+                    var status = await GetStatusWithTimeout();
                     consecutiveErrors = 0;
 
                     if (status == Yx5300.PlayStatus.Playing)
@@ -179,11 +193,33 @@ namespace meadow_monsterbox.Controllers
                     }
                 }
 
-                await Task.Delay(PollInterval);
-                elapsed += PollInterval;
+                await Task.Delay(PollInterval, token);
             }
 
             Logger.Warn($"Track still reported playing after {MaxPlayDuration.TotalSeconds}s; moving on.");
+        }
+
+        private async Task<Yx5300.PlayStatus> GetStatusWithTimeout()
+        {
+            // the timeout timer is cancelled as soon as the status arrives, rather than
+            // left running for the full StatusTimeout on every poll
+            using (var timeoutCts = new CancellationTokenSource())
+            {
+                var statusTask = _mp3Player.GetStatus();
+                if (await Task.WhenAny(statusTask, Task.Delay(StatusTimeout, timeoutCts.Token)) != statusTask)
+                {
+                    throw new TimeoutException("GetStatus() timed out.");
+                }
+
+                timeoutCts.Cancel();
+                return await statusTask;
+            }
+        }
+
+        public void Dispose()
+        {
+            _shutdown.Cancel();
+            (_mp3Player as IDisposable)?.Dispose();
         }
     }
 }
